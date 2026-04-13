@@ -429,10 +429,15 @@ function toggleTheme() {
 
 let RAW_VENCER = [], RAW_MERMA_HDR = [], RAW_MERMA_ROWS = [];
 
+function splitProducto(raw) {
+  const s = (raw||'').trim();
+  const m = s.match(/^(\d{7,})\s*-\s*(.+)$/);
+  return m ? { cod: m[1], desc: m[2].trim() } : { cod: '—', desc: s||'—' };
+}
+
 function renderAll() {
   renderVencer();
   renderMerma();
-
   const nV = parseInt(document.getElementById('tc-v').textContent)||0;
   const nA = parseInt(document.getElementById('tc-a').textContent)||0;
   const nM = parseInt(document.getElementById('tc-m').textContent)||0;
@@ -444,71 +449,89 @@ function renderVencer() {
 
   const rows = RAW_VENCER.filter(r => r.some(c => c && c.trim()));
 
-  const fVencer    = rows.filter(r => /^si$/i.test((r[3]||'').trim()));
-  const fAveriados = rows.filter(r => /^si$/i.test((r[7]||'').trim()));
+  const desde = getDesde(), hasta = getHasta();
 
-  const filtV = fVencer.filter(r => inRango(r[5]));
-  const filtA = fAveriados;
+  const allVencer = rows.filter(r => /^si$/i.test((r[3]||'').trim()));
+  const allAverid = rows.filter(r => /^si$/i.test((r[7]||'').trim()));
 
-  const vencidos = filtV.filter(r => { const d=diasRest(r[5]); return d!==null&&d<0; }).length;
-  const criticos = filtV.filter(r => { const d=diasRest(r[5]); return d!==null&&d>=0&&d<=7; });
-  const proximos = filtV.filter(r => { const d=diasRest(r[5]); return d!==null&&d>7&&d<=30; });
-  const rango    = filtV.filter(r => { const d=diasRest(r[5]); return d!==null&&d>30&&d<=90; });
+  function enRangoVenc(r) {
+    const f = parseDate(r[5]);
+    if (!f) return true;
+    if (desde && f < desde) return false;
+    if (hasta && f > hasta) return false;
+    return true;
+  }
+  function enRangoRelev(r) {
+    const f = parseDate(r[0]);
+    if (!f) return true;
+    if (desde && f < desde) return false;
+    if (hasta && f > hasta) return false;
+    return true;
+  }
 
-  document.getElementById('m-vencidos').textContent = vencidos;
-  document.getElementById('m-crit').textContent = criticos.length;
-  document.getElementById('m-prox').textContent = proximos.length;
-  document.getElementById('m-rango').textContent = rango.length;
-  document.getElementById('m-aver').textContent = filtA.length;
-  document.getElementById('tc-v').textContent = filtV.length;
-  document.getElementById('tc-a').textContent = filtA.length;
-  document.getElementById('badge-v').textContent = filtV.length + ' items';
-  document.getElementById('badge-a').textContent = filtA.length + ' items';
+  const filtV = allVencer.filter(enRangoVenc);
+  const filtA = allAverid.filter(enRangoRelev);
 
-  const resC = document.getElementById('res-criticos');
-  const allCrit = filtV.filter(r => { const d=diasRest(r[5]); return d!==null&&d<=90; })
-    .sort((a,b) => (diasRest(a[5])||999) - (diasRest(b[5])||999));
-  resC.innerHTML = allCrit.length
-    ? allCrit.map(r => {
-        const prod = r[4]||''; const m = prod.match(/^(\d{6,})\s*[-–]?\s*(.*)/); const desc = m?m[2]:prod;
-        return `<div class="rrow"><span class="rrow-lbl" title="${desc}">${desc||'—'}</span>${pillDias(diasRest(r[5]))}</div>`;
-      }).join('')
+  const sorted = [...filtV].sort((a,b) => (diasRest(a[5])??9999) - (diasRest(b[5])??9999));
+
+  const vencidos = sorted.filter(r => { const d=diasRest(r[5]); return d!==null&&d<0; });
+  const d0_7     = sorted.filter(r => { const d=diasRest(r[5]); return d!==null&&d>=0&&d<=7; });
+  const d8_30    = sorted.filter(r => { const d=diasRest(r[5]); return d!==null&&d>7&&d<=30; });
+  const d31_90   = sorted.filter(r => { const d=diasRest(r[5]); return d!==null&&d>30&&d<=90; });
+  const dMas90   = sorted.filter(r => { const d=diasRest(r[5]); return d!==null&&d>90; });
+
+  document.getElementById('m-vencidos').textContent = vencidos.length;
+  document.getElementById('m-crit').textContent     = d0_7.length;
+  document.getElementById('m-prox').textContent     = d8_30.length;
+  document.getElementById('m-rango').textContent    = d31_90.length;
+  document.getElementById('m-aver').textContent     = filtA.length;
+  document.getElementById('tc-v').textContent       = filtV.length;
+  document.getElementById('tc-a').textContent       = filtA.length;
+  document.getElementById('badge-v').textContent    = filtV.length + ' items';
+  document.getElementById('badge-a').textContent    = filtA.length + ' items';
+
+  function rowResumen(r, extraRight) {
+    const {desc} = splitProducto(r[4]);
+    const right = extraRight || pillDias(diasRest(r[5]));
+    return `<div class="rrow">
+      <span class="rrow-lbl" title="${desc}">${desc}</span>
+      <span style="flex-shrink:0;margin-left:8px">${right}</span>
+    </div>`;
+  }
+
+  const critAll = [...vencidos, ...d0_7, ...d8_30, ...d31_90];
+  document.getElementById('res-criticos').innerHTML = critAll.length
+    ? critAll.map(r => rowResumen(r)).join('')
     : '<div class="empty-st">Sin vencimientos en los próximos 90 días</div>';
 
-  const resP = document.getElementById('res-proximos');
-  const todosVencer = filtV.filter(r => { const d=diasRest(r[5]); return d!==null; })
-    .sort((a,b) => (diasRest(a[5])||999) - (diasRest(b[5])||999));
-  resP.innerHTML = todosVencer.length
-    ? todosVencer.map(r => {
-        const prod = r[4]||''; const m = prod.match(/^(\d{6,})\s*[-–]?\s*(.*)/); const desc = m?m[2]:prod;
-        return `<div class="rrow"><span class="rrow-lbl" title="${desc}">${desc||'—'}</span>${pillDias(diasRest(r[5]))}</div>`;
-      }).join('')
-    : '<div class="empty-st">Sin próximos vencimientos</div>';
+  document.getElementById('res-proximos').innerHTML = sorted.length
+    ? sorted.map(r => rowResumen(r)).join('')
+    : '<div class="empty-st">Sin vencimientos</div>';
 
-  const resA = document.getElementById('res-averiados');
-  resA.innerHTML = filtA.length
+  document.getElementById('res-averiados').innerHTML = filtA.length
     ? filtA.map(r => {
-        const prod = r[8]||''; const m = prod.match(/^(\d{6,})\s*[-–]?\s*(.*)/); const desc = m?m[2]:prod;
-        return `<div class="rrow"><span class="rrow-lbl" title="${desc}">${desc||'—'}</span><span style="font-size:11px;color:var(--tx3)">${r[9]||''}</span></div>`;
+        const {desc} = splitProducto(r[8]);
+        return `<div class="rrow">
+          <span class="rrow-lbl" title="${desc}">${desc}</span>
+          <span style="font-size:11px;color:var(--tx3);flex-shrink:0;margin-left:8px">${r[9]||'—'}</span>
+        </div>`;
       }).join('')
     : '<div class="empty-st">Sin averiados</div>';
 
   const tbV = document.querySelector('#tbl-v tbody');
-  tbV.innerHTML = filtV.length
-    ? filtV.map(r => {
-        const prod = r[4]||'';
-        let cod = '', desc = prod;
-        const m = prod.match(/^(\d{6,})\s*[-–]?\s*(.*)$/);
-        if (m) { cod = m[1]; desc = m[2]||prod; }
+  tbV.innerHTML = sorted.length
+    ? sorted.map(r => {
+        const {cod, desc} = splitProducto(r[4]);
+        const ts = r[0].split(' ')[0];
         return `<tr>
-          <td style="font-family:var(--mono);font-size:11px">${r[0]||'—'}</td>
+          <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${ts}</td>
           <td>${r[1]||'—'}</td>
           <td>${r[2]||'—'}</td>
-          <td style="font-family:var(--mono);font-size:12px;color:var(--tx2)">${cod||'—'}</td>
-          <td>${desc||'—'}</td>
-          <td style="font-family:var(--mono);font-size:12px">${r[5]||'—'}</td>
-          <td style="font-family:var(--mono)">${r[6]||'—'}</td>
-          <td>${pillDias(diasRest(r[5]))}</td>
+          <td style="font-family:var(--mono);font-size:12px;color:var(--tx2);white-space:nowrap">${cod}</td>
+          <td>${desc}</td>
+          <td style="font-family:var(--mono);font-size:12px;white-space:nowrap">${r[5]||'—'}</td>
+          <td style="font-family:var(--mono);text-align:right">${r[6]||'—'}</td>
+          <td style="white-space:nowrap">${pillDias(diasRest(r[5]))}</td>
         </tr>`;
       }).join('')
     : '<tr><td colspan="8" class="empty-st">Sin registros en este rango</td></tr>';
@@ -516,16 +539,16 @@ function renderVencer() {
   const tbA = document.querySelector('#tbl-a tbody');
   tbA.innerHTML = filtA.length
     ? filtA.map(r => {
-        const prod = r[8]||''; const m = prod.match(/^(\d{6,})\s*[-–]?\s*(.*)/);
-        const cod = m?m[1]:'—'; const desc = m?(m[2]||prod):prod;
+        const {cod, desc} = splitProducto(r[8]);
+        const ts = r[0].split(' ')[0];
         return `<tr>
-          <td style="font-family:var(--mono);font-size:11px">${r[0]||'—'}</td>
+          <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${ts}</td>
           <td>${r[1]||'—'}</td>
           <td>${r[2]||'—'}</td>
-          <td style="font-family:var(--mono);font-size:12px;color:var(--tx2)">${cod}</td>
-          <td>${desc||'—'}</td>
+          <td style="font-family:var(--mono);font-size:12px;color:var(--tx2);white-space:nowrap">${cod}</td>
+          <td>${desc}</td>
           <td>${r[9]||'—'}</td>
-          <td style="font-family:var(--mono)">${r[10]||'—'}</td>
+          <td style="font-family:var(--mono);text-align:right">${r[10]||'—'}</td>
         </tr>`;
       }).join('')
     : '<tr><td colspan="7" class="empty-st">Sin registros de averiados</td></tr>';
