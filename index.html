@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SISTEMA RELEVAMIENTO SANTA MARGARITA - MERMA</title>
+  <style>
+    :root { 
+      --verde-santa-margarita: #004d33; 
+      --verde-claro: #f1f8e9;
+      --rojo-alerta: #d32f2f; 
+      --dorado-santa-margarita: #c5a059; 
+      --gris-fondo: #f0f2f5; 
+      --blanco: #ffffff;
+    }
+    body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--gris-fondo); padding: 10px; margin: 0; text-transform: uppercase; }
+    .container { background: var(--blanco); padding: 25px; border-radius: 15px; max-width: 650px; margin: auto; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-top: 8px solid var(--verde-santa-margarita); }
+    .header-santa { text-align: center; margin-bottom: 25px; }
+    .header-santa h2 { font-family: 'Georgia', serif; color: var(--verde-santa-margarita); font-size: 32px; margin: 0; font-weight: bold; }
+    .header-santa h4 { color: #555; margin: 0; font-size: 12px; letter-spacing: 3px; font-weight: bold; }
+    label { font-weight: bold; display: block; margin-top: 20px; color: var(--verde-santa-margarita); font-size: 13px; }
+    input, select, textarea { width: 100%; padding: 14px; margin-top: 6px; border: 2px solid #e0e0e0; border-radius: 8px; box-sizing: border-box; text-transform: uppercase; font-size: 14px; }
+    
+    .p-prod { border: 2px solid var(--verde-santa-margarita) !important; background-color: var(--verde-claro); font-weight: bold; }
+    .input-error { border: 3px solid var(--rojo-alerta) !important; background-color: #ffebee !important; }
+    .msg-error { color: var(--rojo-alerta); font-size: 10px; font-weight: bold; margin-top: 5px; display: none; }
+
+    .pregunta-contenedor { background: var(--verde-claro); padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center; border: 1px solid #c8e6c9; }
+    .botones-decision { display: flex; gap: 15px; max-width: 250px; margin: auto; margin-top: 15px; }
+    .btn-sn { flex: 1; padding: 12px; border: 2px solid #ccc; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; }
+    .active-si { background: var(--verde-santa-margarita) !important; color: white; border-color: var(--verde-santa-margarita); }
+    .active-no { background: var(--rojo-alerta) !important; color: white; border-color: var(--rojo-alerta); }
+    
+    .seccion-productos { display: none; margin-top: 15px; }
+    .producto-row { background: white; padding: 18px; margin-bottom: 15px; border-left: 6px solid var(--verde-santa-margarita); border-radius: 8px; border: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .btn-add { background: var(--verde-santa-margarita); color: white; width: 100%; padding: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+    .btn-remove { background: #ff5252; color: white; font-size: 11px; padding: 8px 12px; border: none; border-radius: 5px; margin-top: 12px; cursor: pointer; float: right; font-weight: bold; }
+    .btn-enviar { width: 100%; background: var(--verde-santa-margarita); color: white; margin-top: 40px; font-size: 18px; padding: 22px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-santa">
+    <h2>Santa Margarita</h2>
+    <h4>CONTROL DE MERMA</h4>
+  </div>
+
+  <form id="formulario">
+    <label>NOMBRE DEL RELEVADOR</label>
+    <select id="vendedor" required onchange="actualizarPDV()">
+      <option value="">SELECCIONE...</option>
+      <option value="NATALIA ORTIZ">NATALIA ORTIZ</option>
+      <option value="TANIA VELAZQUEZ">TANIA VELAZQUEZ</option>
+      <option value="CANDELA RAMIREZ">CANDELA RAMIREZ</option>
+      <option value="SINDY OLMEDO">SINDY OLMEDO</option>
+      <option value="HELEN BERNAL">HELEN BERNAL</option>
+      <option value="RONALDO SOTO">RONALDO SOTO</option>
+      <option value="JORGE SERVIN">JORGE SERVIN</option>
+      <option value="CELSA ARGUELLO">CELSA ARGUELLO</option>
+      <option value="JOHANA JARA">JOHANA JARA</option>
+      <option value="GLORIA SOTO">GLORIA SOTO</option>
+      <option value="LINA LÓPEZ">LINA LÓPEZ</option>
+      <option value="SOLEDAD DÍAZ">SOLEDAD DÍAZ</option>
+      <option value="FABRICIO RAMIREZ">FABRICIO RAMIREZ</option>
+      <option value="MELISSA SANDOVAL">MELISSA SANDOVAL</option>
+      <option value="CLARA BARRETO">CLARA BARRETO</option>
+      <option value="OSCAR MARTINEZ">OSCAR MARTINEZ</option>
+      <option value="JULIAN BOGARÍN">JULIAN BOGARÍN</option>
+      <option value="DERLIS DIARTE">DERLIS DIARTE</option>
+      <option value="CAROLINA MOSQUEIRA">CAROLINA MOSQUEIRA</option>
+      <option value="JESSICA MONTANIA">JESSICA MONTANIA</option>
+      <option value="PAMELA BENITEZ">PAMELA BENITEZ</option>
+      <option value="MIGUEL PEREIRA">MIGUEL PEREIRA</option>
+      <option value="FABIOLA INSFRÁN">FABIOLA INSFRÁN</option>
+    </select>
+
+    <label>PUNTO DE VENTA</label>
+    <select id="pdv" required>
+      <option value="">-- PRIMERO SELECCIONE RELEVADOR --</option>
+    </select>
+
+    <div id="panel-merma">
+        <div class="pregunta-contenedor">
+            <span style="font-size: 13px; font-weight: bold; color: var(--verde-santa-margarita);">¿HAY PRODUCTOS QUE PASAN A MERMA?</span>
+            <div class="botones-decision">
+              <button type="button" id="merma-si" class="btn-sn" onclick="decidirCarga('merma', true)">SÍ</button>
+              <button type="button" id="merma-no" class="btn-sn" onclick="decidirCarga('merma', false)">NO</button>
+            </div>
+        </div>
+        <div id="seccion-merma" class="seccion-productos">
+            <div id="cont-merma"></div>
+            <button type="button" class="btn-add" onclick="agregarFila()">+ AÑADIR PRODUCTO</button>
+        </div>
+    </div>
+
+    <div class="pregunta-contenedor" style="margin-top:30px;">
+        <span style="font-size: 13px; font-weight: bold; color: var(--verde-santa-margarita);">¿TIENES ALGUNA OBSERVACIÓN?</span>
+        <div class="botones-decision">
+          <button type="button" id="obs-si" class="btn-sn" onclick="decidirObs(true)">SÍ</button>
+          <button type="button" id="obs-no" class="btn-sn" onclick="decidirObs(false)">NO</button>
+        </div>
+        <div id="campo-observacion" style="display:none; margin-top:15px;">
+            <textarea id="texto-observacion" rows="3" placeholder="ESCRIBA SU OBSERVACIÓN AQUÍ..."></textarea>
+        </div>
+    </div>
+
+    <button type="submit" class="btn-enviar" id="btnEnvio">ENVIAR REPORTE</button>
+  </form>
+</div>
+
+<datalist id="lista-productos-datalist">
+  <option value="7840127000186 - EDULCORANTE LIQUIDO DULCITAN X 100 ML.">
+  <option value="7840127000759 - EDULCORANTE LIQUIDO DULCITAN X 250 ML.">
+  <option value="7840127002029 - EDULCORANTE LIQUIDO DULCITAN X 500 ML.">
+  <option value="7840127020931 - EDULCORANTE LIQUIDO DULCITAN ECONOMICO X 100ML">
+  <option value="7840127020948 - EDULCORANTE LIQUIDO DULCITAN ECONOMICO X 250ML">
+  <option value="7840127020955 - EDULCORANTE LIQUIDO DULCITAN ECONOMICO X 500ML">
+  <option value="7840127020207 - EDULCORANTE LIQUIDO DULCITAN KA'A HE'E 100ML">
+  <option value="7840127020962 - EDULCORANTE LIQUIDO DULCITAN KA´A HE´E 200 ML">
+  <option value="7840127001541 - HIERBAS AJENJO X 20 GR.">
+  <option value="7840127001428 - HIERBAS ANIS ESTRELLADO X 20 GR.">
+  <option value="7840127001404 - HIERBAS ANIS SEMILLA X 20 GR.">
+  <option value="7840127001411 - HIERBAS ANIS SEMILLA X 50 GR.">
+  <option value="7840127001466 - HIERBAS BOLDO X 20 GR">
+  <option value="7840127001473 - HIERBAS BOLDO X 50 GR.">
+  <option value="7840127001442 - HIERBAS BURRITO X 20 GR.">
+  <option value="7840127001459 - HIERBAS BURRITO X 50 GR.">
+  <option value="7840127001527 - HIERBAS COLA DE CABALLO X 20 GR.">
+  <option value="7840127001589 - HIERBAS ENELDO X 20 GR.">
+  <option value="7840127001596 - HIERBAS ENELDO X 50 GR.">
+  <option value="7840127001756 - HIERBAS EUCALIPTO X 20 GR.">
+  <option value="7840127001503 - HIERBAS JAGUARETE KAA X 20 GR.">
+  <option value="7840127001510 - HIERBAS JAGUARETE KAA X 50 GR.">
+  <option value="7840127001640 - HIERBAS KAA HEE X 20 GR.">
+  <option value="7840127001657 - HIERBAS KAA HEE X 50 GR.">
+  <option value="7840127001381 - HIERBAS MANZANILLA X 20 GR.">
+  <option value="7840127020214 - HIERBAS MANZANILLA X 40 GR.">
+  <option value="7840127001626 - HIERBAS URUSU HEE X 20 GR.">
+  <option value="7840127001633 - HIERBAS URUSU HEE X 50 GR.">
+  <option value="7840127000216 - MENTA Y BOLDO YERBA KURUPI MENTA Y BOLDO X 250 GR.">
+  <option value="7840127000124 - MENTA Y BOLDO YERBA KURUPI MENTA Y BOLDO X 500 GR.">
+  <option value="7840127020887 - MENTA Y BOLDO YERBA KURUPI MENTA Y BOLDO X 100 GR.">
+  <option value="7840127020542 - MIX DE SABORES JENGIBRE Y LIMON X 20 SAQ">
+  <option value="7840127020559 - MIX DE SABORES MANZANILLA Y ANIS X 20 SAQ">
+  <option value="7840127020535 - MIX DE SABORES MANZANILLA Y MIEL X 20 SAQ">
+  <option value="7840127020832 - MIX DE SABORES TE DE AÇAI X 20 SAQ.">
+  <option value="7840127020870 - MIX DE SABORES TE CURCUMA, NARANJA Y JENGIBRE X 20SAQ">
+  <option value="7840127002166 - MIX TEA MIX TEA CITRICO X 10 SAQ">
+  <option value="7840127002159 - MIX TEA MIX TEA FRUTOS ROJOS X 10 SAQ.">
+  <option value="7840127002142 - MIX TEA MIX TEA HERBAL X 10 SAQ.">
+  <option value="7840127020986 - MIX TEA MIX TEA FUSION X 9 SAQ">
+  <option value="7840127000087 - PLAN_DETOX PLAN 30 DIAS X 60 SAQ.">
+  <option value="7840127020580 - PLAN_DETOX PLAN SLIM LINE X 60 SAQ.">
+  <option value="7840127020368 - PLAN_DETOX ADELGAZATE X 20 SAQ">
+  <option value="7840127002081 - PLAN_DETOX ADELGAZA TE X 10 SAQ.">
+  <option value="7840127020740 - PLAN_DETOX ADELGAZA TE X 50 GR. GRANEL">
+  <option value="7840127020573 - PLAN_DETOX PLAN SLIM LINE X 30 SAQ">
+  <option value="7840127020825 - PLAN_DETOX PLAN 30 DIAS X 30 SAQ.">
+  <option value="7840127020511 - TE GOURMET_PREMIUN ENGLISH BREAKFAST X 20 SAQ">
+  <option value="7840127020528 - TE GOURMET_PREMIUN TE CEYLAN X 20 SAQ">
+  <option value="7840127020504 - TE GOURMET_PREMIUN TE NEGRO CANELA X 20 SAQ">
+  <option value="7840127020474 - TE GOURMET_PREMIUN TE NEGRO NARANJA X 20 SAQ">
+  <option value="7840127000636 - TE GOURMET_PREMIUN TE NEGRO X 10 SAQ.">
+  <option value="7840127020436 - TE GOURMET_PREMIUN TE NEGRO X 20 SAQ">
+  <option value="7840127020450 - TE GOURMET_PREMIUN TE VERDE JAZMIN X 20 SAQ">
+  <option value="7840127020467 - TE GOURMET_PREMIUN TE VERDE LIMON X 20 SAQ">
+  <option value="7840127020443 - TE GOURMET_PREMIUN TE VERDE MENTA X 20 SAQ">
+  <option value="7840127020566 - TE GOURMET_PREMIUN TE VERDE PIÑA X 20 SAQ">
+  <option value="7840127000650 - TE GOURMET_PREMIUN TE VERDE X 10 SAQ.">
+  <option value="7840127020429 - TE GOURMET_PREMIUN TE VERDE X 20 SAQ">
+  <option value="7840127000520 - TE MEDICINALES ALIVIATE X 10 SAQ.">
+  <option value="7840127020405 - TE MEDICINALES BRONQUIOTE X 20 SAQ">
+  <option value="7840127020375 - TE MEDICINALES CARDIOTE X 20 SAQ">
+  <option value="7840127020344 - TE MEDICINALES COLESTE X 20 SAQ">
+  <option value="7840127020412 - TE MEDICINALES DIABETE X 20 SAQ">
+  <option value="7840127020351 - TE MEDICINALES DIGESTE X 20 SAQ">
+  <option value="7840127020399 - TE MEDICINALES DULCETE X 20 SAQ">
+  <option value="7840127020337 - TE MEDICINALES ENERGIZATE X 20 SAQ">
+  <option value="7840127020382 - TE MEDICINALES RELAXTE X 20 SAQ">
+  <option value="7840127020733 - TE MEDICINALES BRONQUIO TE X 50 GR. GRANEL">
+  <option value="7840127020757 - TE MEDICINALES COLESTE X 50 GRAMOS GRANEL">
+  <option value="7840127020795 - TE MEDICINALES DIABETE X 50 GRAMOS GRANEL">
+  <option value="7840127020788 - TE MEDICINALES DIGESTE X 50 GRAMOS GRANEL">
+  <option value="7840127001152 - TE SALUDABLES ANIS X 10 SAQ.">
+  <option value="7840127020306 - TE SALUDABLES ANIS X 20 SAQ">
+  <option value="7840127000674 - TE SALUDABLES BOLDO X 10 SAQ.">
+  <option value="7840127020252 - TE SALUDABLES BOLDO X 20 SAQ">
+  <option value="7840127000612 - TE SALUDABLES BURRITO X 10 SAQ.">
+  <option value="7840127020313 - TE SALUDABLES BURRITO X 20 SAQ">
+  <option value="7840127000551 - TE SALUDABLES CEDRON X 10 SAQ.">
+  <option value="7840127020283 - TE SALUDABLES CEDRON X 20 SAQ">
+  <option value="7840127000575 - TE SALUDABLES JAGUARETE KAA X 10 SAQ.">
+  <option value="7840127020320 - TE SALUDABLES JAGUARETE KA'A X 20 SAQ">
+  <option value="7840127000711 - TE SALUDABLES MANZANILLA X 10 SAQ.">
+  <option value="7840127020269 - TE SALUDABLES MANZANILLA X 20 SAQ">
+  <option value="7840127000599 - TE SALUDABLES MENTA X 10 SAQ.">
+  <option value="7840127020276 - TE SALUDABLES MENTA X 20 SAQ">
+  <option value="7840127000698 - TE SALUDABLES TILO X 10 SAQ.">
+  <option value="7840127020290 - TE SALUDABLES TILO X 20 SAQ">
+  <option value="7840127001916 - YERBA MATE SAQUITO MATE COCIDO C/A X 10">
+  <option value="7840127020597 - YERBA MATE SAQUITO MATE COCIDO C/A X 20 SAQ">
+  <option value="7840127001930 - YERBA MATE SAQUITO MATE COCIDO S/A X 10">
+  <option value="7840127020603 - YERBA MATE SAQUITO MATE COCIDO S/A X 20 SAQ">
+  <option value="7840127001114 - YERBAS SABORIZADAS YERBA KURUPI ANIS X 250 GR.">
+  <option value="7840127001107 - YERBAS SABORIZADAS YERBA KURUPI ANIS X 500 GR.">
+  <option value="7840127002005 - YERBAS SABORIZADAS YERBA KURUPI CEDRON Y MENTA X 500 GR.">
+  <option value="7840127000735 - YERBAS SABORIZADAS YERBA KURUPI FITNESS X 250 GR.">
+  <option value="7840127000728 - YERBAS SABORIZADAS YERBA KURUPI FITNESS X 500 GR.">
+  <option value="7840127002111 - YERBAS SABORIZADAS YERBA KURUPI JENGIBRE Y MENTA X 250 GR.">
+  <option value="7840127002128 - YERBAS SABORIZADAS YERBA KURUPI JENGIBRE Y MENTA X 500 GR.">
+  <option value="7840127000391 - YERBAS SABORIZADAS YERBA KURUPI KATUAVA X 250 GR.">
+  <option value="7840127000384 - YERBAS SABORIZADAS YERBA KURUPI KATUAVA X 500 GR.">
+  <option value="7840127020849 - YERBAS SABORIZADAS YERBA KURUPI MEGAMENTA X 250 GR.">
+  <option value="7840127020856 - YERBAS SABORIZADAS YERBA KURUPI MEGAMENTA X 500 GR.">
+  <option value="7840127020979 - YERBAS SABORIZADAS LATA MEGAMENTA X 500 GR">
+  <option value="7840127001831 - YERBAS SABORIZADAS YERBA KURUPI MENTA Y LIMON X 250 GR.">
+  <option value="7840127001848 - YERBAS SABORIZADAS YERBA KURUPI MENTA Y LIMON X 500 GR">
+  <option value="7840127021068 - YERBAS SABORIZADAS YERBA MATE ANIS Y MANZANILLA X 250 GR">
+  <option value="7840127021075 - YERBAS SABORIZADAS YERBA MATE ANIS Y MANZANILLA X 500 GR">
+  <option value="7840127000223 - YERBAS TRADICIONALES YERBA KURUPI CLASICA X 250 GR.">
+  <option value="7840127000230 - YERBAS TRADICIONALES YERBA KURUPI CLASICA X 500 GR.">
+  <option value="7840127000766 - YERBAS TRADICIONALES YERBA KURUPI TRADICIONAL X 250 GR.">
+  <option value="7840127000773 - YERBAS TRADICIONALES YERBA KURUPI TRADICIONAL X 500 GR.">
+  <option value="7840127020894 - YERBAS TRADICIONALES YERBA KURUPI TRADICIONAL BOLSA X 100 GR.">
+  <option value="7840127020900 - YERBAS TRADICIONALES YERBA KURUPI TRADICIONAL BOLSA X 250 GR.">
+  <option value="7840127020917 - YERBAS TRADICIONALES YERBA KURUPI TRADICIONAL BOLSA X 500 GR.">
+  <option value="7840127021006 - YERBA MATE MATE COCIDO C/AZUCAR GR X 150GRS">
+  <option value="7840127021020 - YERBA MATE SAQ. YERBA MATE FRUTOS ROJOS X 20 SAQ">
+  <option value="7840127021044 - YERBA MATE SAQ. YERBA MATE MBURUCUYA X 20 SAQ">
+  <option value="7840127021013 - YERBA MATE SAQ. YERBA MATE MANZANA CANELA X 20 SAQ">
+  <option value="7840127021037 - YERBA MATE SAQ. YERBA MATE HERBAL X 20 SAQ">
+  <option value="7840127021051 - YERBA MATE SAQ. YERBA MATE JENGIBRE LIMON X 20 SAQ">
+</datalist>
+
+<script>
+const PRODUCTOS_VALIDOS = Array.from(document.querySelectorAll("#lista-productos-datalist option")).map(opt => opt.value);
+
+const datosPDV = {
+  "NATALIA ORTIZ": ["SUPERSEIS - DENIS ROA", "SUPERSEIS - GALERÍA", "SUPERSEIS - MBURUCUYA", "DELIMARKT", "HIPERSEIS", "SUPERSEIS - LOS LAURELES", "SUPERSEIS - VILLA MORRA", "SUPERSEIS - GRAN UNIÓN"],
+  "TANIA VELAZQUEZ": ["SUPERSEIS - MUNDI MARK", "SUPERSEIS - ESPAÑA", "SUPERSEIS - LA NEGRITA", "SUPERMERCADOS STOCK - UNICOMPRA", "SUPERSEIS - TOTAL", "SUPERMERCADOS STOCK - MALL EXCELSIOR ", "SUPERMERCADOS STOCK - OBRERO", "SUPERMERCADOS STOCK - BERTA"],
+  "CANDELA RAMIREZ": ["SUPERMERCADOS STOCK - MARISCAL LOPEZ", "SUPERSEIS - CAMBACUA ", "SUPERSEIS - FERNANDO DE LA MORA", "LOS JARDINES - LAGUNA GRANDE", "LOS JARDINES - FERNANDO", "SUPERMERCADOS STOCK - CALLE'I", "SUPERMERCADOS STOCK - PERONI", "SUPERSEIS - LAURESUPERMERCADOS LTY"],
+  "SINDY OLMEDO": ["SUPERSEIS - LAMBARÉ", "SUPERSEIS - JAPÓN", "SUPERSEIS - SIRIO", "SUPERMERCADOS STOCK - CARRETERA", "SUPERMERCADOS STOCK - BOQUERÓN", "SUPERSEIS - ÑEMBY", "SUPERMERCADOS STOCK - ACCESO", "SUPERMERCADOS STOCK - VILLA ELISA", "SUPERMERCADOS STOCK - DEFENSORES", "SUPERMERCADOS STOCK - CACIQUE"],
+  "HELEN BERNAL": ["SUPERMERCADOS STOCK - BRASILIA 1", "SUPERMERCADOS STOCK - BRASILIA 2", "SUPERMERCADOS STOCK - IPS SACRAMENTO", "SUPERMERCADOS STOCK - ARTIGAS", "SUPERSEIS - PORTAL", "SUPERMERCADO KINGO - MARIANO ROQUE ALONSO", "SUPERMERCADOS STOCK - MARIANO ROQUE ALONSO 1", "SUPERMERCADOS STOCK - MARIANO ROQUE ALONSO 2"],
+  "RONALDO SOTO": ["SUPERSEIS - AREGUA", "LOS JARDINES - PRIMAVERA", "LOS JARDINES - SPAR", "LA BOMBA - AREGUA", "SUPERMERCADOS STOCK - PALMA LOMA", "SUPERSEIS - MADERO", "SUPERSEIS - LUQUE ROSARIO", "LOS JARDINES - VILLA ADELA", "SUPERMERCADOS STOCK - BRITEZ BORGES"],
+  "JORGE SERVIN": ["SALEMMA - SHOPPING SAN LORENZO", "CADENA REAL - CAPIATA R2", "SUPERMERCADOS STOCK - HIPER 14/5", "SUPERMERCADOS STOCK - ITAUGUA 1", "SUPERMERCADO KINGO - AVELINO MARTINEZ", "SUPERMERCADOS STOCK - AVELINO MARTINEZ", "SUPERMERCADOS STOCK - MANUEL ORTIZ GUERRERO", "SUPERMERCADOS STOCK - SAN LORENZO", "SUPERMERCADOS STOCK - ITAUGUA 2 EXPRESS"],
+  "CELSA ARGUELLO": ["SUPERMERCADOS STOCK - R1", "SUPERSEIS - SAN LORENZO", "SUPERMERCADOS STOCK - CAPIATA R2", "CADENA REAL - CAPIATA R1", "HIPERMERCADO LUISITO - CAPIATA R1", "HIPERMERCADO LUISITO - YPANE", "SUPERMERCADOS STOCK - J.A 1", "SUPERMERCADOS STOCK - J.A 2", "SUPERMERCADOS STOCK - YPANE", "SUPERSEIS - VILLETA", "SUPERMERCADOS STOCK - GUARAMBARE", "SUPERMERCADOS STOCK - LA VICTORIA", "SUPERMERCADOS STOCK - ITA"],
+  "JOHANA JARA": ["COMERCIAL SAN CAYETANO - LUQUE"],
+  "GLORIA SOTO": ["COMERCIAL VIRGEN DEL ROSARIO", "COMERCIAL VIRGEN DEL ROSARIO CAÑADA"],
+  "LINA LÓPEZ": ["SUPERMERCADO MOREL HERMANOS", "HIPERMERCADO LUISITO - ITAUGUA "],
+  "SOLEDAD DÍAZ": ["CACIQUE - ITAUGUA"],
+  "FABRICIO RAMIREZ": ["CACIQUE - LUQUE"],
+  "MELISSA SANDOVAL": ["COMERCIAL EL CACIQUE - AREGUA"],
+  "CLARA BARRETO": ["HUPERMERCADO LUISITO - MARIANO ROQUE ALONSO", "ARCHI - MARIANO ROQUE ALONSO", "ARETE - PRIMER PRESIDENTE", "SUPERMERCADO PUEBLO - MARIANO ROQUE ALONSO", "SUPERMERCADOS STOCK - LIMPIO", "SUPERMERCADOS STOCK - PIQUETE CUE", "SUPERMERCADOS STOCK - VILLA HAYES"],
+  "OSCAR MARTINEZ": ["HIPERMERCADO LUISITO - EUSEBIO AYALA", "CADENA REAL - FERNANDO DE LA MORA", "SUPERMERCADO GUARANI", "SALEMMA - SHOPPING FUENTE", "SUPERMERCADO PUEBLO - FERNANDO DE LA MORA", "SUPERMERCADOS STOCK - PITIANTUTA"],
+  "JULIAN BOGARÍN": ["HIPERMEMRCADO LUISITO - 4 MOJONES", "SUPERMEMRCADO PUEBLO - PASEO DEL SUR", "LA BARCA", "LA BOMBA - M4 PROCERES", "LA BOMBA - TERMINAL ", "SUPERMERCADO PRYCA - TERMINAL", "GRAN VÍA - CHOFERES", "SUPERMERCADOS STOCK - TERMINAL", "SUPERMEMRCADO PRYCA - EXPRESS"],
+  "DERLIS DIARTE": ["SUPERMÁS - ÑEMBY", "HIPERMERCADO LUISITO - SAN LORENZO", "CADENA REAL - ÑEMBY 1", "CADENA REAL - ÑEMBY 2", "HIPER MERCADO LUISITO - ÑEMBY", "GRAN VIA - ÑEMBY", "LA BOMBA - ÑEMBY", "SUPERMERCADOS STOCK - SAN ANTONIO"],
+  "CAROLINA MOSQUEIRA": ["PUEBLO SAN VICENTE", "ARETE - LAMBARE", "SUPERMERCADO PUEBLO - LAMBARE", "HIPERMERCADO LUISITO - VILLA ELISA", "SANTA ROSA DE LIMA LAMBARE", "SUPERMERCADO METRO", "CADENA REAL - ACCESO SUR", "CADENA REAL - SAN VICENTE"],
+  "JESSICA MONTANIA": ["CADENA REAL - FELIX BOGADO ", "HIPERMERCADO LUISITO - FELIX BOGADO ", "SUPERMERCADO VILLA SOFIA - BARRIO OBRERO", "SUPERMERCADO VILLA SOFIA - SAJONIA", "LA PREFERIDA GARIBALDI ", "SUPERMERCADO PACIFICO ", "SUPERMERCADO EL PAÍS"],
+  "PAMELA BENITEZ": ["CADENA REAL - VILLA MORRA", "SALEMMA - CARMELITAS", "ARETE - SAUSALITO", "SUPERMEMRCADO PUEBLO - ARTIGAS ", "CASA RICA - LOS LAURELES", "CASA RICA - ESPAÑA", "CASA RICA - MOLAS ", "CASA RICA - PERSEVERANCIA", "LA BOMBA - VÍA FERREA"],
+  "MIGUEL PEREIRA": ["SUPERMERCADOS LT LIMPIO", "SUPERMERCADOS LT MBAJUE", "SUPERMERCADOS LT MORA CUE", "SUPERMERCADOS LT SAN JOSE", "SUPERMERCADOS LT RINCÓN", "SANTA ROSA DE LIMA MORA CUE", "SUPERMERCADOS LT EXPRESS VILLA HAYES", "HUPERMEMRCADO LUISITO - LIMPIO", "PUEBLAZO", "SUPERMERCADOS LT VILLA MADRID"],
+  "FABIOLA INSFRÁN": ["ARETE - PINEDO", "LA BOMBA - SANTTA TERESA", "GRAN VÍA - ROYAL ", "HIPERMERCADO LUISITO - LUQUE", "GRAN VIA - LUQUE", "SUPERMERCADO VILLA SOFIA - LUQUE", "SUPERSEIS - EXPRESS MOIETY"]
+};
+
+function actualizarPDV() {
+  const relevadorSeleccionado = document.getElementById("vendedor").value;
+  const selectPDV = document.getElementById("pdv");
+  selectPDV.innerHTML = '<option value="">-- SELECCIONE PDV --</option>';
+  if (relevadorSeleccionado && datosPDV[relevadorSeleccionado]) {
+    datosPDV[relevadorSeleccionado].forEach(pdv => {
+      let option = document.createElement("option");
+      option.value = pdv;
+      option.textContent = pdv;
+      selectPDV.appendChild(option);
+    });
+  }
+}
+
+let respuestas = { merma: null, obs: null };
+
+function decidirCarga(tipo, tiene) {
+  respuestas[tipo] = tiene;
+  document.getElementById(`${tipo}-si`).className = tiene ? 'btn-sn active-si' : 'btn-sn';
+  document.getElementById(`${tipo}-no`).className = !tiene ? 'btn-sn active-no' : 'btn-sn';
+  document.getElementById(`seccion-${tipo}`).style.display = tiene ? "block" : "none";
+  const cont = document.getElementById(`cont-${tipo}`);
+  if (tiene && cont.children.length === 0) agregarFila();
+}
+
+function decidirObs(tiene) {
+  respuestas.obs = tiene;
+  document.getElementById('obs-si').className = tiene ? 'btn-sn active-si' : 'btn-sn';
+  document.getElementById('obs-no').className = !tiene ? 'btn-sn active-no' : 'btn-sn';
+  document.getElementById('campo-observacion').style.display = tiene ? "block" : "none";
+  if(!tiene) document.getElementById('texto-observacion').value = "";
+}
+
+function validarProducto(input) {
+  const row = input.parentElement;
+  const errorMsg = row.querySelector(".msg-error");
+  if (input.value === "" || PRODUCTOS_VALIDOS.includes(input.value)) {
+    input.classList.remove('input-error');
+    if(errorMsg) errorMsg.style.display = "none";
+  } else {
+    input.classList.add('input-error');
+    if(errorMsg) errorMsg.style.display = "block";
+  }
+}
+
+function agregarFila() {
+  const contenedor = document.getElementById(`cont-merma`);
+  const div = document.createElement("div");
+  div.className = "producto-row";
+  
+  div.innerHTML = `
+    <label>PRODUCTO A MERMA</label>
+    <input type="text" list="lista-productos-datalist" class="p-prod" placeholder="BUSCAR PRODUCTO..." oninput="validarProducto(this)" required autocomplete="off">
+    <span class="msg-error">⚠️ DEBE SELECCIONAR UN PRODUCTO DE LA LISTA</span>
+    
+    <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+      <div style="flex:1">
+        <label>FECHA DE VENCIMIENTO</label>
+        <input type="date" class="p-vencimiento" required>
+      </div>
+      <div style="flex:1">
+        <label>CANT. (OBLIGATORIO)</label>
+        <input type="number" class="p-cant" min="1" placeholder="EJ: 5" required>
+      </div>
+    </div>
+    <button type="button" class="btn-remove" onclick="this.parentElement.remove()">ELIMINAR</button><div style="clear:both"></div>`;
+  contenedor.appendChild(div);
+}
+
+document.getElementById("formulario").onsubmit = function(e) {
+  e.preventDefault();
+  
+  if (respuestas.merma === null) { 
+    alert("POR FAVOR SELECCIONE SI HAY PRODUCTOS A MERMA."); 
+    return; 
+  }
+  
+  if (respuestas.obs === null) {
+    alert("POR FAVOR RESPONDA SI TIENE ALGUNA OBSERVACIÓN.");
+    return;
+  }
+
+  let inputsProductos = document.querySelectorAll(".p-prod");
+  let hayErrores = false;
+  inputsProductos.forEach(input => {
+    if (!PRODUCTOS_VALIDOS.includes(input.value)) {
+      input.classList.add('input-error');
+      const errorMsg = input.parentElement.querySelector(".msg-error");
+      if(errorMsg) errorMsg.style.display = "block";
+      hayErrores = true;
+    }
+  });
+
+  if (hayErrores) {
+    alert("❌ NO SE PUEDE ENVIAR: HAY PRODUCTOS NO VÁLIDOS EN LA LISTA.");
+    return;
+  }
+
+  const btn = document.getElementById("btnEnvio");
+  btn.disabled = true; btn.innerText = "ENVIANDO...";
+
+  const payload = {
+    relevador: document.getElementById("vendedor").value,
+    pdv: document.getElementById("pdv").value,
+    merma: [],
+    observaciones: document.getElementById("texto-observacion").value
+  };
+
+  document.querySelectorAll("#cont-merma .producto-row").forEach(r => {
+    payload.merma.push({ 
+        producto: r.querySelector(".p-prod").value, 
+        vencimiento: r.querySelector(".p-vencimiento").value,
+        cant: r.querySelector(".p-cant").value 
+    });
+  });
+
+  // RECUERDA CAMBIAR ESTA URL POR LA DE TU DESPLIEGUE EN APPS SCRIPT
+  fetch("https://script.google.com/macros/s/AKfycbwehtGHHuGcTnafZmJuHmzakwh-705WdF48kzRs_CxRljKQoEsFosmzFuZEDGJ0aAeDOw/exec", {
+    method: "POST",
+    mode: "no-cors",
+    body: JSON.stringify(payload)
+  }).then(() => { 
+    alert("REPORTE DE MERMA ENVIADO CORRECTAMENTE"); 
+    location.reload(); 
+  }).catch(err => {
+    alert("ERROR AL ENVIAR. VERIFIQUE SU CONEXIÓN.");
+    btn.disabled = false; btn.innerText = "ENVIAR REPORTE";
+  });
+};
+</script>
+</body>
+</html>
