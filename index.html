@@ -151,6 +151,20 @@ tbody tr:hover{background:var(--bg3);}
 .ctrl-btn.excel{background:#1d6f42;border-color:#1d6f42;color:#fff;}
 .ctrl-btn.excel:hover{background:#165c36;}
 
+/* ── PANTALLA DE CARGA ── */
+#loader{
+  position:fixed;inset:0;z-index:9999;
+  background:#0d1a0d;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  transition:opacity .7s ease;
+}
+#loader.ocultar{opacity:0;pointer-events:none;}
+.loader-barra-wrap{width:220px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;}
+.loader-barra{height:100%;width:0%;background:linear-gradient(90deg,#4a8c3f,#6ab04c);border-radius:2px;}
+.loader-txt{font-size:12px;color:rgba(255,255,255,0.4);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;}
+.loader-dots::after{content:'';animation:dots 1.2s steps(3,end) infinite;}
+@keyframes dots{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
+
 /* ── PDF REPORT (oculto, se imprime) ── */
 #pdf-report{display:none;}
 @media print{
@@ -201,6 +215,26 @@ tbody tr:hover{background:var(--bg3);}
 </head>
 <body data-theme="light">
 
+<!-- ── PANTALLA DE CARGA ── -->
+<div id="loader">
+  <svg width="90" height="90" viewBox="0 0 80 80" fill="none">
+    <ellipse cx="40" cy="40" rx="36" ry="36" fill="rgba(255,255,255,0.06)"/>
+    <path d="M40 18 C32 14,16 24,20 42 C23 54,35 60,40 70 C45 60,57 54,60 42 C64 24,48 14,40 18Z" fill="#6ab04c" opacity="0.3"/>
+    <path d="M40 22 C34 18,21 26,24 42 C27 52,36 57,40 66" stroke="#4a8c3f" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M40 32 C37 26,26 30,28 40 C30 47,36 51,40 58" fill="#6ab04c" opacity="0.55"/>
+    <path d="M40 22 C46 18,59 26,56 42 C53 52,44 57,40 66" stroke="#2d6a2d" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M40 32 C43 26,54 30,52 40 C50 47,44 51,40 58" fill="#2d6a2d" opacity="0.45"/>
+  </svg>
+  <div style="text-align:center;">
+    <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:.04em;margin-bottom:4px;">SANTA MARGARITA S.A.</div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.35);letter-spacing:.14em;text-transform:uppercase;">Laboratorio y Herboristería</div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+    <div class="loader-barra-wrap"><div class="loader-barra" id="loader-barra"></div></div>
+    <div class="loader-txt">Cargando tablero<span class="loader-dots"></span></div>
+  </div>
+</div>
+
 <div class="topbar">
   <div class="brand">
     <div class="logo-wrap">
@@ -222,7 +256,7 @@ tbody tr:hover{background:var(--bg3);}
   </div>
   <div class="topbar-right">
     <button class="tbtn" onclick="toggleTheme()" id="theme-icon">🌙</button>
-    <button class="rbtn" onclick="loadAll()"><span id="ref-icon">↻</span> Actualizar</button>
+    <button class="rbtn" onclick="loadAll(true)"><span id="ref-icon">↻</span> Actualizar</button>
   </div>
 </div>
 
@@ -597,7 +631,8 @@ function renderAll(){
     :'<tr><td colspan="8" class="empty-st">Sin registros en este rango</td></tr>';
 }
 
-async function loadAll(){
+async function loadAll(manual){
+  if(manual){ showLoader('Actualizando datos'); }
   setStatus('loading','Actualizando desde Google Sheets...');
   const icon=document.getElementById('ref-icon');
   icon.style.transition='transform .5s';icon.style.transform='rotate(360deg)';
@@ -625,7 +660,36 @@ async function loadAll(){
   renderAll();
   setStatus(ok?'ok':'err',ok?'Conectado — datos en tiempo real':'Error de conexión — verificá permisos');
   updateTime();
+  if(manual){ setTimeout(hideLoader, 800); }
 }
+
+/* ── LOADER ── */
+function showLoader(msg){
+  const el=document.getElementById('loader');
+  const barra=document.getElementById('loader-barra');
+  const txt=el.querySelector('.loader-txt');
+  if(txt) txt.innerHTML=(msg||'Actualizando datos')+'<span class="loader-dots"></span>';
+  el.classList.remove('ocultar');
+  barra.style.transition='none';
+  barra.style.width='0%';
+  setTimeout(()=>{
+    barra.style.transition='width 4.5s cubic-bezier(.4,0,.2,1)';
+    barra.style.width='95%';
+  },50);
+}
+function hideLoader(){
+  const el=document.getElementById('loader');
+  const barra=document.getElementById('loader-barra');
+  barra.style.transition='width .3s ease';
+  barra.style.width='100%';
+  setTimeout(()=>{ el.classList.add('ocultar'); },350);
+}
+
+/* ── INIT LOADER al entrar ── */
+(function initLoader(){
+  showLoader('Cargando tablero');
+  setTimeout(hideLoader, 5200);
+})();
 
 document.getElementById('fecha-desde').addEventListener('change',renderAll);
 document.getElementById('fecha-hasta').addEventListener('change',renderAll);
