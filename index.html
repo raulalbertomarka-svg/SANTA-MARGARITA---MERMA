@@ -530,8 +530,8 @@ function renderDonut(segments){
 
 function renderAll(){
   const rows=RAW_VENCER.filter(r=>r.some(c=>c&&c.trim()));
-  const allV=rows.filter(r=>siMatch(r[3])||siMatch(r[7]));
-  const allA=rows.filter(r=>siMatch(r[11]));
+  const allV=rows.filter(r=>siMatch(r[3])||(siMatch(r[7])&&(r[8]||'').trim()!=''));
+  const allA=rows.filter(r=>siMatch(r[11])&&(r[12]||'').trim()!=='');
 
   const filtV=allV.filter(r=>inRangoFecha(getFechaVenc(r)));
   const filtA=allA.filter(r=>inRangoFecha(r[0]));
@@ -712,8 +712,8 @@ function exportarPDF(){
   const periodoStr=desdeF||hastaF?`${desdeF||'inicio'} al ${hastaF||'hoy'}`:'Todo el período registrado';
 
   const rows=RAW_VENCER.filter(r=>r.some(c=>c&&c.trim()));
-  const allV=rows.filter(r=>siMatch(r[3])||siMatch(r[7]));
-  const allA=rows.filter(r=>siMatch(r[11]));
+  const allV=rows.filter(r=>siMatch(r[3])||(siMatch(r[7])&&(r[8]||'').trim()!=''));
+  const allA=rows.filter(r=>siMatch(r[11])&&(r[12]||'').trim()!=='');
   const filtV=allV.filter(r=>inRangoFecha(getFechaVenc(r)));
   const filtA=allA.filter(r=>inRangoFecha(r[0]));
   const filtM=RAW_MERMA.filter(r=>inRangoFecha(r[0]));
@@ -1097,8 +1097,8 @@ function exportarExcel(){
   if(!XLSX){ alert('Cargando librería, intentá de nuevo en un segundo...'); return; }
 
   const rows = RAW_VENCER.filter(r=>r.some(c=>c&&c.trim()));
-  const allV  = rows.filter(r=>siMatch(r[3])||siMatch(r[7]));
-  const allA  = rows.filter(r=>siMatch(r[11]));
+  const allV  = rows.filter(r=>siMatch(r[3])||(siMatch(r[7])&&(r[8]||'').trim()!=''));
+  const allA  = rows.filter(r=>siMatch(r[11])&&(r[12]||'').trim()!=='');
   const filtV = allV.filter(r=>inRangoFecha(r[5]));
   const filtA = allA.filter(r=>inRangoFecha(r[0]));
   const filtM = RAW_MERMA.filter(r=>inRangoFecha(r[0]));
