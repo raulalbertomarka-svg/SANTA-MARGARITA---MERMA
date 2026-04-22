@@ -466,7 +466,10 @@ function splitProd(raw){
   return m?{cod:m[1],desc:m[2].trim()}:{cod:'—',desc:s||'—'};
 }
 
-function siMatch(s){return/^s[íi]$/i.test((s||'').trim());}
+function siMatch(s){
+  const v=(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  return v==='si';
+}
 
 function getDesde(){const v=document.getElementById('fecha-desde').value;if(!v)return null;const[y,m,d]=v.split('-').map(Number);const dt=new Date(y,m-1,d);dt.setHours(0,0,0,0);return dt;}
 function getHasta(){const v=document.getElementById('fecha-hasta').value;if(!v)return null;const[y,m,d]=v.split('-').map(Number);const dt=new Date(y,m-1,d);dt.setHours(23,59,59);return dt;}
@@ -531,7 +534,7 @@ function renderDonut(segments){
 function renderAll(){
   const rows=RAW_VENCER.filter(r=>r.some(c=>c&&c.trim()));
   const allV=rows.filter(r=>siMatch(r[3])||(siMatch(r[7])&&(r[8]||'').trim()!=''));
-  const allA=rows.filter(r=>siMatch(r[11])&&(r[12]||'').trim()!=='');
+  const allA=rows.filter(r=>siMatch(r[11]));
 
   const filtV=allV.filter(r=>inRangoFecha(getFechaVenc(r)));
   const filtA=allA.filter(r=>inRangoFecha(r[0]));
@@ -548,11 +551,12 @@ function renderAll(){
   document.getElementById('k-crit').textContent=d0_7.length;
   document.getElementById('k-prox').textContent=d8_30.length;
   document.getElementById('k-rango').textContent=d31_90.length;
-  document.getElementById('k-aver').textContent=filtA.length;
+  const filtAconDatos=filtA.filter(r=>(r[12]||'').trim()!='');
+  document.getElementById('k-aver').textContent=filtAconDatos.length;
   document.getElementById('tc-v').textContent=filtV.length;
-  document.getElementById('tc-a').textContent=filtA.length;
+  document.getElementById('tc-a').textContent=filtAconDatos.length;
   document.getElementById('badge-v').textContent=filtV.length+' items';
-  document.getElementById('badge-a').textContent=filtA.length+' items';
+  document.getElementById('badge-a').textContent=filtAconDatos.length+' items';
   document.getElementById('total-num').textContent=filtV.length+filtA.length+filtM.length;
 
   renderDonut([
@@ -585,8 +589,9 @@ function renderAll(){
     :'<tr><td colspan="8" class="empty-st">Sin registros en este rango</td></tr>';
 
   /* TABLA AVERIADOS */
+  const filtAconDatos=filtA.filter(r=>(r[12]||'').trim()!='');
   const tbA=document.querySelector('#tbl-a tbody');
-  tbA.innerHTML=filtA.length
+  tbA.innerHTML=filtAconDatos.length
     ?filtA.map(r=>{
       const{cod,desc}=splitProd(r[8]);
       const fecha=r[0].split(' ')[0];
@@ -713,7 +718,7 @@ function exportarPDF(){
 
   const rows=RAW_VENCER.filter(r=>r.some(c=>c&&c.trim()));
   const allV=rows.filter(r=>siMatch(r[3])||(siMatch(r[7])&&(r[8]||'').trim()!=''));
-  const allA=rows.filter(r=>siMatch(r[11])&&(r[12]||'').trim()!=='');
+  const allA=rows.filter(r=>siMatch(r[11]));
   const filtV=allV.filter(r=>inRangoFecha(getFechaVenc(r)));
   const filtA=allA.filter(r=>inRangoFecha(r[0]));
   const filtM=RAW_MERMA.filter(r=>inRangoFecha(r[0]));
@@ -1098,7 +1103,7 @@ function exportarExcel(){
 
   const rows = RAW_VENCER.filter(r=>r.some(c=>c&&c.trim()));
   const allV  = rows.filter(r=>siMatch(r[3])||(siMatch(r[7])&&(r[8]||'').trim()!=''));
-  const allA  = rows.filter(r=>siMatch(r[11])&&(r[12]||'').trim()!=='');
+  const allA  = rows.filter(r=>siMatch(r[11]));
   const filtV = allV.filter(r=>inRangoFecha(r[5]));
   const filtA = allA.filter(r=>inRangoFecha(r[0]));
   const filtM = RAW_MERMA.filter(r=>inRangoFecha(r[0]));
