@@ -624,18 +624,21 @@ function renderCumplimiento(){
   // Construir visitas desde Hoja 1 en el rango seleccionado
   // contar cuántas veces visitó cada relevador cada PDV
   const rows=RAW_VENCER.filter(r=>r.some(c=>c&&c.trim()));
-  const visitasCnt={}; // { "relev|||pdv" → count }
+  const visitasDias={}; // { "relev|||pdv" → Set de fechas únicas }
   rows.forEach(r=>{
     if(!inRangoFecha(r[0])) return;
     const relev=(r[1]||'').trim().toUpperCase();
     const pdv  =(r[2]||'').trim().toUpperCase();
-    if(!relev||!pdv) return;
+    const fecha=(r[0]||'').trim().split(' ')[0]; // solo la fecha, sin hora
+    if(!relev||!pdv||!fecha) return;
     const key=relev+'|||'+pdv;
-    visitasCnt[key]=(visitasCnt[key]||0)+1;
+    if(!visitasDias[key]) visitasDias[key]=new Set();
+    visitasDias[key].add(fecha);
   });
 
   function getVisitas(relev, pdv){
-    return visitasCnt[relev.toUpperCase()+'|||'+pdv.toUpperCase()]||0;
+    const s=visitasDias[relev.toUpperCase()+'|||'+pdv.toUpperCase()];
+    return s?s.size:0;
   }
 
   // Calcular métricas
@@ -1460,14 +1463,18 @@ function exportarPDF(){try{
     if(!ruteoPDF[relev]) ruteoPDF[relev]=[];
     ruteoPDF[relev].push({pdv,dias});
   });
-  const visitasCntPDF={};
+  const visitasDiasPDF={};
   RAW_VENCER.filter(r=>r.some(c=>c&&c.trim())).forEach(r=>{
     if(!inRangoFecha(r[0])) return;
     const relev=(r[1]||'').trim().toUpperCase();
     const pdv  =(r[2]||'').trim().toUpperCase();
-    if(relev&&pdv){ const k=relev+'|||'+pdv; visitasCntPDF[k]=(visitasCntPDF[k]||0)+1; }
+    const fecha=(r[0]||'').trim().split(' ')[0];
+    if(!relev||!pdv||!fecha) return;
+    const k=relev+'|||'+pdv;
+    if(!visitasDiasPDF[k]) visitasDiasPDF[k]=new Set();
+    visitasDiasPDF[k].add(fecha);
   });
-  function getVisPDF(relev,pdv){ return visitasCntPDF[relev.toUpperCase()+'|||'+pdv.toUpperCase()]||0; }
+  function getVisPDF(relev,pdv){ const s=visitasDiasPDF[relev.toUpperCase()+'|||'+pdv.toUpperCase()]; return s?s.size:0; }
 
   let cumplTotalEsp=0, cumplTotalReal=0;
   const cumplStatsPDF=Object.keys(ruteoPDF).sort().map(relev=>{
@@ -1659,13 +1666,17 @@ function exportarExcel(){try{
     if(!inRangoFecha(r[0])) return;
     const relev=(r[1]||'').trim().toUpperCase();
     const pdv  =(r[2]||'').trim().toUpperCase();
-    if(relev&&pdv){ const k=relev+'|||'+pdv; visitasXls[k]=(visitasXls[k]||0)+1; }
+    const fecha=(r[0]||'').trim().split(' ')[0];
+    if(!relev||!pdv||!fecha) return;
+    const k=relev+'|||'+pdv;
+    if(!visitasXls[k]) visitasXls[k]=new Set();
+    visitasXls[k].add(fecha);
   });
 
   const datosCumpl=[['Relevador','Punto de venta','Visitas esperadas','Visitas realizadas','Pendientes','% Cumplimiento','Estado']];
   Object.keys(ruteoPDV).sort().forEach(relev=>{
     ruteoPDV[relev].forEach(({pdv,dias})=>{
-      const real=Math.min(visitasXls[relev.toUpperCase()+'|||'+pdv.toUpperCase()]||0, dias);
+      const _sx=visitasXls[relev.toUpperCase()+'|||'+pdv.toUpperCase()]; const real=Math.min(_sx?_sx.size:0, dias);
       const pend=dias-real;
       const pct=Math.round(real/dias*100);
       const estado=pct===100?'✓ Completo':real>0?real+'/'+dias+' visitas':'✗ Sin visita';
