@@ -409,9 +409,9 @@ tbody tr:hover{background:var(--bg3);}
 
       <!-- KPIs de cumplimiento -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;">
-        <div class="kpi vd"><div class="kpi-lbl">Total asignados</div><div class="kpi-val vd" id="cumpl-total">—</div><div class="kpi-sub">PDVs en el ruteo</div></div>
-        <div class="kpi tl"><div class="kpi-lbl">Cargados</div><div class="kpi-val tl" id="cumpl-cargados">—</div><div class="kpi-sub">Con reporte en el período</div></div>
-        <div class="kpi rd"><div class="kpi-lbl">Pendientes</div><div class="kpi-val rd" id="cumpl-pendientes">—</div><div class="kpi-sub">Sin reporte cargado</div></div>
+        <div class="kpi vd"><div class="kpi-lbl">Visitas esperadas</div><div class="kpi-val vd" id="cumpl-total">—</div><div class="kpi-sub">Total de visitas en el ruteo</div></div>
+        <div class="kpi tl"><div class="kpi-lbl">Visitas realizadas</div><div class="kpi-val tl" id="cumpl-cargados">—</div><div class="kpi-sub">Registros cargados</div></div>
+        <div class="kpi rd"><div class="kpi-lbl">Visitas pendientes</div><div class="kpi-val rd" id="cumpl-pendientes">—</div><div class="kpi-sub">Sin reporte cargado</div></div>
         <div class="kpi am"><div class="kpi-lbl">% Cumplimiento</div><div class="kpi-val am" id="cumpl-pct">—</div><div class="kpi-sub">Meta: 100%</div></div>
       </div>
 
@@ -432,8 +432,8 @@ tbody tr:hover{background:var(--bg3);}
             <table id="tbl-cumpl" style="width:100%;border-collapse:collapse;font-size:12px;">
               <thead><tr>
                 <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;background:var(--bg3);border-bottom:1px solid var(--brd);">Relevador</th>
-                <th style="text-align:center;padding:7px 10px;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;background:var(--bg3);border-bottom:1px solid var(--brd);">Asig.</th>
-                <th style="text-align:center;padding:7px 10px;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;background:var(--bg3);border-bottom:1px solid var(--brd);">Carg.</th>
+                <th style="text-align:center;padding:7px 10px;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;background:var(--bg3);border-bottom:1px solid var(--brd);">Esperadas</th>
+                <th style="text-align:center;padding:7px 10px;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;background:var(--bg3);border-bottom:1px solid var(--brd);">Realizadas</th>
                 <th style="text-align:center;padding:7px 10px;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;background:var(--bg3);border-bottom:1px solid var(--brd);">Pend.</th>
                 <th style="text-align:center;padding:7px 10px;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;background:var(--bg3);border-bottom:1px solid var(--brd);">Cumpl.</th>
               </tr></thead>
@@ -610,49 +610,58 @@ function renderMaestros(){
 function renderCumplimiento(){
   if(!RAW_RELEV_PDV.length) return;
 
-  // Construir ruteo: { relevador → [pdvs asignados] }
+  // Construir ruteo: { relevador → [{pdv, diasEsperados}] }
   const ruteo={};
   RAW_RELEV_PDV.forEach(r=>{
     const relev=(r[0]||'').trim();
     const pdv  =(r[1]||'').trim();
+    const dias =parseInt((r[2]||'1').toString().trim())||1;
     if(!relev||!pdv) return;
     if(!ruteo[relev]) ruteo[relev]=[];
-    ruteo[relev].push(pdv);
+    ruteo[relev].push({pdv, dias});
   });
 
   // Construir visitas desde Hoja 1 en el rango seleccionado
-  // Una visita = cualquier fila en RAW_VENCER donde relevador (r[1]) + PDV (r[2]) coincidan
+  // contar cuántas veces visitó cada relevador cada PDV
   const rows=RAW_VENCER.filter(r=>r.some(c=>c&&c.trim()));
-  const visitados={}; // { "relev||pdv" → true }
+  const visitasCnt={}; // { "relev|||pdv" → count }
   rows.forEach(r=>{
     if(!inRangoFecha(r[0])) return;
     const relev=(r[1]||'').trim().toUpperCase();
     const pdv  =(r[2]||'').trim().toUpperCase();
-    if(relev&&pdv) visitados[relev+'|||'+pdv]=true;
+    if(!relev||!pdv) return;
+    const key=relev+'|||'+pdv;
+    visitasCnt[key]=(visitasCnt[key]||0)+1;
   });
 
-  function fueVisitado(relev, pdv){
-    return !!(visitados[relev.toUpperCase()+'|||'+pdv.toUpperCase()]);
+  function getVisitas(relev, pdv){
+    return visitasCnt[relev.toUpperCase()+'|||'+pdv.toUpperCase()]||0;
   }
 
-  // Calcular métricas globales
-  let totalAsig=0, totalCarg=0;
+  // Calcular métricas
+  let totalEsperadas=0, totalRealizadas=0;
   const relevadores=Object.keys(ruteo).sort();
   const stats=relevadores.map(relev=>{
     const pdvs=ruteo[relev];
-    const cargados=pdvs.filter(p=>fueVisitado(relev,p)).length;
-    const pendientes=pdvs.length-cargados;
-    const pct=pdvs.length?Math.round(cargados/pdvs.length*100):0;
-    totalAsig+=pdvs.length; totalCarg+=cargados;
-    return {relev, pdvs, cargados, pendientes, pct};
+    let esperadas=0, realizadas=0;
+    const detalle=pdvs.map(({pdv,dias})=>{
+      const vis=getVisitas(relev,pdv);
+      const cumplPDV=Math.min(vis,dias); // no sumar más de lo esperado
+      esperadas+=dias;
+      realizadas+=cumplPDV;
+      return {pdv, dias, vis, cumplPDV};
+    });
+    const pct=esperadas?Math.round(realizadas/esperadas*100):0;
+    totalEsperadas+=esperadas; totalRealizadas+=realizadas;
+    return {relev, detalle, esperadas, realizadas, pendientes:esperadas-realizadas, pct};
   }).sort((a,b)=>b.pct-a.pct);
 
-  const totalPend=totalAsig-totalCarg;
-  const totalPct=totalAsig?Math.round(totalCarg/totalAsig*100):0;
+  const totalPend=totalEsperadas-totalRealizadas;
+  const totalPct=totalEsperadas?Math.round(totalRealizadas/totalEsperadas*100):0;
 
   // KPIs
-  document.getElementById('cumpl-total').textContent=totalAsig;
-  document.getElementById('cumpl-cargados').textContent=totalCarg;
+  document.getElementById('cumpl-total').textContent=totalEsperadas;
+  document.getElementById('cumpl-cargados').textContent=totalRealizadas;
   document.getElementById('cumpl-pendientes').textContent=totalPend;
   document.getElementById('cumpl-pct').textContent=totalPct+'%';
   document.getElementById('tc-cumpl').textContent=totalPct+'%';
@@ -662,12 +671,11 @@ function renderCumplimiento(){
   const alertaTxt=document.getElementById('cumpl-alerta-txt');
   if(totalPend>0){
     alerta.style.display='flex';
-    alertaTxt.textContent='El '+(100-totalPct)+'% de los locales asignados no presentan reporte cargado en el período seleccionado.';
+    alertaTxt.textContent='El '+(100-totalPct)+'% de las visitas asignadas no han sido registradas en el período seleccionado.';
   } else {
     alerta.style.display='none';
   }
 
-  // Color por porcentaje
   function colorPct(pct){
     if(pct===100) return '#27ae60';
     if(pct>=67)   return '#f39c12';
@@ -679,11 +687,11 @@ function renderCumplimiento(){
   const barrasEl=document.getElementById('cumpl-barras');
   barrasEl.innerHTML=stats.map(s=>{
     const col=colorPct(s.pct);
-    const colBg=s.pct<33?'rgba(231,76,60,0.15)':'rgba(255,255,255,0.06)';
     return '<div style="display:flex;flex-direction:column;gap:4px;">'+
       '<div style="display:flex;justify-content:space-between;font-size:11px;">'+
-        '<span style="color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:72%;">'+s.relev+'</span>'+
-        '<span style="color:'+col+';font-family:var(--mono);font-weight:700;flex-shrink:0;">'+s.pct+'%</span>'+
+        '<span style="color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;">'+s.relev+'</span>'+
+        '<span style="font-size:10px;color:var(--tx3);font-family:var(--mono);">'+s.realizadas+'/'+s.esperadas+'</span>'+
+        '<span style="color:'+col+';font-family:var(--mono);font-weight:700;flex-shrink:0;margin-left:6px;">'+s.pct+'%</span>'+
       '</div>'+
       '<div style="height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;">'+
         '<div style="height:100%;width:'+s.pct+'%;background:'+col+';border-radius:4px;transition:width .4s;"></div>'+
@@ -697,33 +705,39 @@ function renderCumplimiento(){
     const col=colorPct(s.pct);
     return '<tr style="border-bottom:1px solid var(--brd);">'+
       '<td style="padding:8px 10px;color:var(--tx);font-size:12px;">'+s.relev+'</td>'+
-      '<td style="padding:8px 10px;text-align:center;font-family:var(--mono);color:var(--tx2);">'+s.pdvs.length+'</td>'+
-      '<td style="padding:8px 10px;text-align:center;font-family:var(--mono);color:#27ae60;font-weight:600;">'+s.cargados+'</td>'+
+      '<td style="padding:8px 10px;text-align:center;font-family:var(--mono);color:var(--tx2);">'+s.esperadas+'</td>'+
+      '<td style="padding:8px 10px;text-align:center;font-family:var(--mono);color:#27ae60;font-weight:600;">'+s.realizadas+'</td>'+
       '<td style="padding:8px 10px;text-align:center;font-family:var(--mono);color:var(--rd);font-weight:600;">'+s.pendientes+'</td>'+
       '<td style="padding:8px 10px;text-align:center;font-family:var(--mono);font-weight:700;color:'+col+';">'+s.pct+'%</td>'+
     '</tr>';
   }).join('');
 
-  // Detalle expandible
+  // Detalle expandible con visitas realizadas / esperadas por PDV
   const detalleEl=document.getElementById('cumpl-detalle');
   detalleEl.innerHTML=stats.map((s,i)=>{
     const col=colorPct(s.pct);
-    const pdvRows=s.pdvs.map(pdv=>{
-      const vis=fueVisitado(s.relev,pdv);
-      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 16px;border-bottom:1px solid var(--brd);font-size:12px;">'+
-        '<span style="color:var(--tx2);">'+pdv+'</span>'+
-        '<span style="font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px;background:'+(vis?'rgba(39,174,96,0.15)':'rgba(192,57,43,0.12)')+';color:'+(vis?'#27ae60':'var(--rd)')+';">'+(vis?'✓ Visitado':'✗ Pendiente')+'</span>'+
+    const pdvRows=s.detalle.map(({pdv,dias,vis,cumplPDV})=>{
+      const pctPDV=Math.round(cumplPDV/dias*100);
+      const colPDV=colorPct(pctPDV);
+      const visitado=vis>0;
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px;border-bottom:1px solid var(--brd);font-size:12px;gap:8px;">'+
+        '<span style="color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+pdv+'</span>'+
+        '<span style="color:var(--tx3);font-size:10px;white-space:nowrap;">'+vis+'/'+dias+' visitas</span>'+
+        '<div style="width:80px;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;flex-shrink:0;">'+
+          '<div style="height:100%;width:'+pctPDV+'%;background:'+colPDV+';border-radius:3px;"></div>'+
+        '</div>'+
+        '<span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;background:'+(visitado?'rgba(39,174,96,0.15)':'rgba(192,57,43,0.12)')+';color:'+(visitado?colPDV:'var(--rd)')+';">'+
+          (visitado?(vis>=dias?'✓ Completo':vis+'/'+dias+' vist.'):'✗ Sin visita')+
+        '</span>'+
       '</div>';
     }).join('');
 
     return '<div style="border:1px solid var(--brd);border-radius:8px;margin-bottom:8px;overflow:hidden;">'+
       '<div onclick="toggleDetalle(\'det-'+i+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);cursor:pointer;">'+
-        '<div style="display:flex;align-items:center;gap:10px;">'+
-          '<span style="font-size:13px;font-weight:600;color:var(--tx);">★ '+s.relev+'</span>'+
-        '</div>'+
-        '<div style="display:flex;align-items:center;gap:16px;font-size:12px;font-family:var(--mono);">'+
-          '<span style="color:var(--tx2);">'+s.pdvs.length+' asig.</span>'+
-          '<span style="color:#27ae60;">'+s.cargados+' carg.</span>'+
+        '<span style="font-size:13px;font-weight:600;color:var(--tx);">★ '+s.relev+'</span>'+
+        '<div style="display:flex;align-items:center;gap:14px;font-size:12px;font-family:var(--mono);">'+
+          '<span style="color:var(--tx2);">'+s.esperadas+' visitas esperadas</span>'+
+          '<span style="color:#27ae60;">'+s.realizadas+' realizadas</span>'+
           '<span style="color:var(--rd);">'+s.pendientes+' pend.</span>'+
           '<span style="color:'+col+';font-weight:700;">'+s.pct+'%</span>'+
           '<span style="color:var(--tx3);font-size:11px;" id="arr-'+i+'">▼</span>'+
