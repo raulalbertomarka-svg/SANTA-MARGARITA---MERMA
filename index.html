@@ -1357,7 +1357,7 @@ function exportarPDF(){try{
         </div>`).join('')}
       </div>
     </div>
-    ${footer(5,6)}
+    ${footer(5,7)}
   </div>`;
 
   /* ─────────────────────────────────────────
@@ -1437,10 +1437,128 @@ function exportarPDF(){try{
 
       </div>
     </div>
-    ${footer(6,6)}
+    ${footer(6,7)}
   </div>`;
 
-  document.getElementById('pdf-report').innerHTML=pag1+pag2+pag3+pag3b+pag4+pag5+pag6;
+  /* ─────────────────────────────────────────
+     PÁG 7 — CUMPLIMIENTO DE RELEVADORES
+  ───────────────────────────────────────── */
+  function colorPctPDF(pct){
+    if(pct===100) return '#27ae60';
+    if(pct>=67)   return '#f39c12';
+    if(pct>=33)   return '#e67e22';
+    return '#e74c3c';
+  }
+
+  // Recalcular stats de cumplimiento con datos del período
+  const ruteoPDF={};
+  RAW_RELEV_PDV.forEach(r=>{
+    const relev=(r[0]||'').trim();
+    const pdv  =(r[1]||'').trim();
+    const dias =parseInt((r[2]||'1').toString().trim())||1;
+    if(!relev||!pdv) return;
+    if(!ruteoPDF[relev]) ruteoPDF[relev]=[];
+    ruteoPDF[relev].push({pdv,dias});
+  });
+  const visitasCntPDF={};
+  RAW_VENCER.filter(r=>r.some(c=>c&&c.trim())).forEach(r=>{
+    if(!inRangoFecha(r[0])) return;
+    const relev=(r[1]||'').trim().toUpperCase();
+    const pdv  =(r[2]||'').trim().toUpperCase();
+    if(relev&&pdv){ const k=relev+'|||'+pdv; visitasCntPDF[k]=(visitasCntPDF[k]||0)+1; }
+  });
+  function getVisPDF(relev,pdv){ return visitasCntPDF[relev.toUpperCase()+'|||'+pdv.toUpperCase()]||0; }
+
+  let cumplTotalEsp=0, cumplTotalReal=0;
+  const cumplStatsPDF=Object.keys(ruteoPDF).sort().map(relev=>{
+    const pdvs=ruteoPDF[relev];
+    let esp=0,real=0;
+    pdvs.forEach(({pdv,dias})=>{ const v=Math.min(getVisPDF(relev,pdv),dias); esp+=dias; real+=v; });
+    const pct=esp?Math.round(real/esp*100):0;
+    cumplTotalEsp+=esp; cumplTotalReal+=real;
+    return {relev,pdvs,esp,real,pend:esp-real,pct};
+  }).sort((a,b)=>b.pct-a.pct);
+  const cumplPctTotal=cumplTotalEsp?Math.round(cumplTotalReal/cumplTotalEsp*100):0;
+
+  function barrasCumplPDF(stats){
+    const max=stats.length?stats[0].esp:1;
+    return stats.map(s=>{
+      const col=colorPctPDF(s.pct);
+      const realW=Math.round(s.real/s.esp*100);
+      const espW=100;
+      return '<div style="margin-bottom:10px;">'+
+        '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;">'+
+          '<span style="color:rgba(255,255,255,0.8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;">'+s.relev+'</span>'+
+          '<span style="color:rgba(255,255,255,0.5);font-family:monospace;font-size:9px;">'+s.real+'/'+s.esp+'</span>'+
+          '<span style="color:'+col+';font-family:monospace;font-weight:700;flex-shrink:0;margin-left:6px;">'+s.pct+'%</span>'+
+        '</div>'+
+        '<div style="height:7px;background:rgba(255,255,255,0.07);border-radius:4px;overflow:hidden;">'+
+          '<div style="height:100%;width:'+realW+'%;background:'+col+';border-radius:4px;"></div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  function tablaCumplPDF(stats){
+    return '<table style="width:100%;border-collapse:collapse;font-size:10px;">'+
+      '<thead><tr>'+
+        '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.4);text-transform:uppercase;font-size:8px;letter-spacing:.07em;border-bottom:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);">Relevador</th>'+
+        '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.4);text-transform:uppercase;font-size:8px;letter-spacing:.07em;border-bottom:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);">Esperadas</th>'+
+        '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.4);text-transform:uppercase;font-size:8px;letter-spacing:.07em;border-bottom:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);">Realizadas</th>'+
+        '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.4);text-transform:uppercase;font-size:8px;letter-spacing:.07em;border-bottom:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);">Pendientes</th>'+
+        '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.4);text-transform:uppercase;font-size:8px;letter-spacing:.07em;border-bottom:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);">Cumpl.</th>'+
+      '</tr></thead><tbody>'+
+      stats.map(s=>{
+        const col=colorPctPDF(s.pct);
+        return '<tr>'+
+          '<td style="padding:5px 8px;color:rgba(255,255,255,0.85);border-bottom:1px solid rgba(255,255,255,0.06);">'+s.relev+'</td>'+
+          '<td style="padding:5px 8px;text-align:center;color:rgba(255,255,255,0.6);font-family:monospace;border-bottom:1px solid rgba(255,255,255,0.06);">'+s.esp+'</td>'+
+          '<td style="padding:5px 8px;text-align:center;color:#27ae60;font-weight:700;font-family:monospace;border-bottom:1px solid rgba(255,255,255,0.06);">'+s.real+'</td>'+
+          '<td style="padding:5px 8px;text-align:center;color:#e74c3c;font-family:monospace;border-bottom:1px solid rgba(255,255,255,0.06);">'+s.pend+'</td>'+
+          '<td style="padding:5px 8px;text-align:center;font-weight:700;font-family:monospace;color:'+col+';border-bottom:1px solid rgba(255,255,255,0.06);">'+s.pct+'%</td>'+
+        '</tr>';
+      }).join('')+
+      '</tbody></table>';
+  }
+
+  const pag7=`<div class="pdf-page">
+    ${accentBar}
+    <div class="pdf-header">
+      <div class="pdf-header-top">
+        <div><div class="pdf-title">Cumplimiento de Relevadores</div>
+        <div class="pdf-sub">Visitas realizadas vs. esperadas según ruteo · ${periodoStr}</div></div>
+        <div class="pdf-badge">${cumplPctTotal}% cumplimiento global</div>
+      </div>
+    </div>
+    <div class="pdf-body" style="padding:0">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+        <div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+            <div style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.3);border-radius:6px;padding:10px 12px;">
+              <div style="font-size:20px;font-weight:700;color:#27ae60;font-family:monospace;">${cumplTotalEsp}</div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;">Visitas esperadas</div>
+            </div>
+            <div style="background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:6px;padding:10px 12px;">
+              <div style="font-size:20px;font-weight:700;color:#e74c3c;font-family:monospace;">${cumplTotalEsp-cumplTotalReal}</div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;">Pendientes</div>
+            </div>
+          </div>
+          <div style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Visitas por relevador</div>
+          ${barrasCumplPDF(cumplStatsPDF)}
+        </div>
+
+        <div>
+          <div style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Detalle por relevador</div>
+          ${tablaCumplPDF(cumplStatsPDF)}
+        </div>
+
+      </div>
+    </div>
+    ${footer(7,7)}
+  </div>`;
+
+  document.getElementById('pdf-report').innerHTML=pag1+pag2+pag3+pag3b+pag4+pag5+pag6+pag7;
   window.print();
 }catch(e){alert('Error PDF: '+e.message);console.error(e);}}
 
@@ -1525,6 +1643,39 @@ function exportarExcel(){try{
   wsM['!cols']=[{wch:18},{wch:36},{wch:16},{wch:38},{wch:16},{wch:10},{wch:30}];
   wsM['!freeze']={xSplit:0,ySplit:1};
   XLSX.utils.book_append_sheet(wb, wsM, 'Merma');
+
+  /* ── HOJA 5: CUMPLIMIENTO ── */
+  const ruteoPDV={};
+  RAW_RELEV_PDV.forEach(r=>{
+    const relev=(r[0]||'').trim();
+    const pdv  =(r[1]||'').trim();
+    const dias =parseInt((r[2]||'1').toString().trim())||1;
+    if(!relev||!pdv) return;
+    if(!ruteoPDV[relev]) ruteoPDV[relev]=[];
+    ruteoPDV[relev].push({pdv,dias});
+  });
+  const visitasXls={};
+  RAW_VENCER.filter(r=>r.some(c=>c&&c.trim())).forEach(r=>{
+    if(!inRangoFecha(r[0])) return;
+    const relev=(r[1]||'').trim().toUpperCase();
+    const pdv  =(r[2]||'').trim().toUpperCase();
+    if(relev&&pdv){ const k=relev+'|||'+pdv; visitasXls[k]=(visitasXls[k]||0)+1; }
+  });
+
+  const datosCumpl=[['Relevador','Punto de venta','Visitas esperadas','Visitas realizadas','Pendientes','% Cumplimiento','Estado']];
+  Object.keys(ruteoPDV).sort().forEach(relev=>{
+    ruteoPDV[relev].forEach(({pdv,dias})=>{
+      const real=Math.min(visitasXls[relev.toUpperCase()+'|||'+pdv.toUpperCase()]||0, dias);
+      const pend=dias-real;
+      const pct=Math.round(real/dias*100);
+      const estado=pct===100?'✓ Completo':real>0?real+'/'+dias+' visitas':'✗ Sin visita';
+      datosCumpl.push([relev, pdv, dias, real, pend, pct+'%', estado]);
+    });
+  });
+  const wsCumpl=XLSX.utils.aoa_to_sheet(datosCumpl);
+  wsCumpl['!cols']=[{wch:32},{wch:40},{wch:18},{wch:18},{wch:14},{wch:16},{wch:18}];
+  wsCumpl['!freeze']={xSplit:0,ySplit:1};
+  XLSX.utils.book_append_sheet(wb, wsCumpl, 'Cumplimiento');
 
   /* nombre de archivo con fecha */
   const hoy=new Date();
