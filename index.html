@@ -279,6 +279,8 @@ tbody tr:hover{background:var(--bg3);}
   </div>
   <button class="ctrl-btn" onclick="semanaActual()">Esta semana</button>
   <button class="ctrl-btn" onclick="semanaAnterior()">Sem. anterior</button>
+  <button class="ctrl-btn" onclick="quincenaActual()">Quincena actual</button>
+  <button class="ctrl-btn" onclick="quincenaAnterior()">Quincena anterior</button>
   <button class="ctrl-btn" onclick="todoPeriodo()">Todo el período</button>
   <button class="ctrl-btn danger" onclick="limpiarFiltros()">✕ Limpiar</button>
   <button class="ctrl-btn export" onclick="exportarPDF()">⬇ Exportar PDF</button>
@@ -409,9 +411,9 @@ tbody tr:hover{background:var(--bg3);}
 
       <!-- KPIs de cumplimiento -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;">
-        <div class="kpi vd"><div class="kpi-lbl">Visitas esperadas</div><div class="kpi-val vd" id="cumpl-total">—</div><div class="kpi-sub">Total de visitas en el ruteo</div></div>
-        <div class="kpi tl"><div class="kpi-lbl">Visitas realizadas</div><div class="kpi-val tl" id="cumpl-cargados">—</div><div class="kpi-sub">Registros cargados</div></div>
-        <div class="kpi rd"><div class="kpi-lbl">Visitas pendientes</div><div class="kpi-val rd" id="cumpl-pendientes">—</div><div class="kpi-sub">Sin reporte cargado</div></div>
+        <div class="kpi vd"><div class="kpi-lbl">Locales asignados</div><div class="kpi-val vd" id="cumpl-total">—</div><div class="kpi-sub">Según ruteo por relevador</div></div>
+        <div class="kpi tl"><div class="kpi-lbl">Locales cargados</div><div class="kpi-val tl" id="cumpl-cargados">—</div><div class="kpi-sub">Con reporte en la quincena</div></div>
+        <div class="kpi rd"><div class="kpi-lbl">Locales pendientes</div><div class="kpi-val rd" id="cumpl-pendientes">—</div><div class="kpi-sub">Sin reporte cargado aún</div></div>
         <div class="kpi am"><div class="kpi-lbl">% Cumplimiento</div><div class="kpi-val am" id="cumpl-pct">—</div><div class="kpi-sub">Meta: 100%</div></div>
       </div>
 
@@ -610,50 +612,50 @@ function renderMaestros(){
 function renderCumplimiento(){
   if(!RAW_RELEV_PDV.length) return;
 
-  // Construir ruteo: { relevador → [{pdv, diasEsperados}] }
+  // Construir ruteo: { relevador → [pdv, pdv, ...] } (locales asignados, sin importar frecuencia)
   const ruteo={};
   RAW_RELEV_PDV.forEach(r=>{
     const relev=(r[0]||'').trim();
     const pdv  =(r[1]||'').trim();
-    const dias =parseInt((r[2]||'1').toString().trim())||1;
     if(!relev||!pdv) return;
     if(!ruteo[relev]) ruteo[relev]=[];
-    ruteo[relev].push({pdv, dias});
+    if(!ruteo[relev].includes(pdv)) ruteo[relev].push(pdv);
   });
 
-  // Construir visitas desde Hoja 1 en el rango seleccionado
-  // contar cuántas veces visitó cada relevador cada PDV
+  // Construir cargas desde Hoja 1 en el rango seleccionado (quincena)
+  // Cuenta como "cargado" cualquier fila de ese relevador en ese PDV dentro del rango,
+  // haya o no productos por vencer/averiados (si cargó "no hay nada" también cuenta).
   const rows=RAW_VENCER.filter(r=>r.some(c=>c&&c.trim()));
-  const visitasDias={}; // { "relev|||pdv" → Set de fechas únicas }
+  const cargas={}; // { "relev|||pdv" → {veces, ultima} }
   rows.forEach(r=>{
     if(!inRangoFecha(r[0])) return;
     const relev=(r[1]||'').trim().toUpperCase();
     const pdv  =(r[2]||'').trim().toUpperCase();
-    const fecha=(r[0]||'').trim().split(' ')[0]; // solo la fecha, sin hora
+    const fecha=(r[0]||'').trim().split(' ')[0];
     if(!relev||!pdv||!fecha) return;
     const key=relev+'|||'+pdv;
-    if(!visitasDias[key]) visitasDias[key]=new Set();
-    visitasDias[key].add(fecha);
+    if(!cargas[key]) cargas[key]={veces:0, ultima:fecha};
+    cargas[key].veces++;
+    cargas[key].ultima=fecha;
   });
 
-  function getVisitas(relev, pdv){
-    const s=visitasDias[relev.toUpperCase()+'|||'+pdv.toUpperCase()];
-    return s?s.size:0;
+  function getCarga(relev, pdv){
+    return cargas[relev.toUpperCase()+'|||'+pdv.toUpperCase()]||null;
   }
 
-  // Calcular métricas
+  // Calcular métricas: esperadas = cant. de locales asignados, realizadas = locales con al menos 1 carga
   let totalEsperadas=0, totalRealizadas=0;
   const relevadores=Object.keys(ruteo).sort();
   const stats=relevadores.map(relev=>{
     const pdvs=ruteo[relev];
-    let esperadas=0, realizadas=0;
-    const detalle=pdvs.map(({pdv,dias})=>{
-      const vis=getVisitas(relev,pdv);
-      const cumplPDV=Math.min(vis,dias); // no sumar más de lo esperado
-      esperadas+=dias;
-      realizadas+=cumplPDV;
-      return {pdv, dias, vis, cumplPDV};
+    let realizadas=0;
+    const detalle=pdvs.map(pdv=>{
+      const c=getCarga(relev,pdv);
+      const cargado=!!c;
+      if(cargado) realizadas++;
+      return {pdv, cargado, ultima:c?c.ultima:null, veces:c?c.veces:0};
     });
+    const esperadas=pdvs.length;
     const pct=esperadas?Math.round(realizadas/esperadas*100):0;
     totalEsperadas+=esperadas; totalRealizadas+=realizadas;
     return {relev, detalle, esperadas, realizadas, pendientes:esperadas-realizadas, pct};
@@ -674,7 +676,7 @@ function renderCumplimiento(){
   const alertaTxt=document.getElementById('cumpl-alerta-txt');
   if(totalPend>0){
     alerta.style.display='flex';
-    alertaTxt.textContent='El '+(100-totalPct)+'% de las visitas asignadas no han sido registradas en el período seleccionado.';
+    alertaTxt.textContent=totalPend+' local'+(totalPend>1?'es':'')+' aún no '+(totalPend>1?'fueron cargados':'fue cargado')+' en la quincena/período seleccionado ('+(100-totalPct)+'% pendiente).';
   } else {
     alerta.style.display='none';
   }
@@ -715,22 +717,16 @@ function renderCumplimiento(){
     '</tr>';
   }).join('');
 
-  // Detalle expandible con visitas realizadas / esperadas por PDV
+  // Detalle expandible: cada PDV con estado Cargado/Pendiente y última fecha
   const detalleEl=document.getElementById('cumpl-detalle');
   detalleEl.innerHTML=stats.map((s,i)=>{
     const col=colorPct(s.pct);
-    const pdvRows=s.detalle.map(({pdv,dias,vis,cumplPDV})=>{
-      const pctPDV=Math.round(cumplPDV/dias*100);
-      const colPDV=colorPct(pctPDV);
-      const visitado=vis>0;
+    const pdvRows=s.detalle.map(({pdv,cargado,ultima,veces})=>{
       return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px;border-bottom:1px solid var(--brd);font-size:12px;gap:8px;">'+
         '<span style="color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+pdv+'</span>'+
-        '<span style="color:var(--tx3);font-size:10px;white-space:nowrap;">'+vis+'/'+dias+' visitas</span>'+
-        '<div style="width:80px;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;flex-shrink:0;">'+
-          '<div style="height:100%;width:'+pctPDV+'%;background:'+colPDV+';border-radius:3px;"></div>'+
-        '</div>'+
-        '<span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;background:'+(visitado?'rgba(39,174,96,0.15)':'rgba(192,57,43,0.12)')+';color:'+(visitado?colPDV:'var(--rd)')+';">'+
-          (visitado?(vis>=dias?'✓ Completo':vis+'/'+dias+' vist.'):'✗ Sin visita')+
+        '<span style="color:var(--tx3);font-size:10px;white-space:nowrap;">'+(cargado?('último: '+ultima+(veces>1?' ('+veces+' cargas)':'')):'sin carga en el período')+'</span>'+
+        '<span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;background:'+(cargado?'rgba(39,174,96,0.15)':'rgba(192,57,43,0.12)')+';color:'+(cargado?'#27ae60':'var(--rd)')+';">'+
+          (cargado?'✓ Cargado':'✗ Pendiente')+
         '</span>'+
       '</div>';
     }).join('');
@@ -739,8 +735,8 @@ function renderCumplimiento(){
       '<div onclick="toggleDetalle(\'det-'+i+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);cursor:pointer;">'+
         '<span style="font-size:13px;font-weight:600;color:var(--tx);">★ '+s.relev+'</span>'+
         '<div style="display:flex;align-items:center;gap:14px;font-size:12px;font-family:var(--mono);">'+
-          '<span style="color:var(--tx2);">'+s.esperadas+' visitas esperadas</span>'+
-          '<span style="color:#27ae60;">'+s.realizadas+' realizadas</span>'+
+          '<span style="color:var(--tx2);">'+s.esperadas+' locales asignados</span>'+
+          '<span style="color:#27ae60;">'+s.realizadas+' cargados</span>'+
           '<span style="color:var(--rd);">'+s.pendientes+' pend.</span>'+
           '<span style="color:'+col+';font-weight:700;">'+s.pct+'%</span>'+
           '<span style="color:var(--tx3);font-size:11px;" id="arr-'+i+'">▼</span>'+
@@ -1006,6 +1002,47 @@ function semanaAnterior(){
   document.getElementById('fecha-hasta').value=toInputDate(domingo);
   renderAll();
 }
+
+/* ── QUINCENAS (1–15 y 16–fin de mes) ── */
+function getQuincenaActual(){
+  const hoy=new Date(); const dia=hoy.getDate();
+  const anio=hoy.getFullYear(), mes=hoy.getMonth();
+  if(dia<=15){
+    return {desde:new Date(anio,mes,1), hasta:new Date(anio,mes,15)};
+  } else {
+    const ultimoDia=new Date(anio,mes+1,0).getDate();
+    return {desde:new Date(anio,mes,16), hasta:new Date(anio,mes,ultimoDia)};
+  }
+}
+function getQuincenaAnterior(){
+  const hoy=new Date(); const dia=hoy.getDate();
+  const anio=hoy.getFullYear(), mes=hoy.getMonth();
+  if(dia<=15){
+    // anterior = 16–fin del mes anterior
+    let mAnt=mes-1, aAnt=anio;
+    if(mAnt<0){mAnt=11;aAnt--;}
+    const ultimoDia=new Date(aAnt,mAnt+1,0).getDate();
+    return {desde:new Date(aAnt,mAnt,16), hasta:new Date(aAnt,mAnt,ultimoDia)};
+  } else {
+    // anterior = 1–15 del mismo mes
+    return {desde:new Date(anio,mes,1), hasta:new Date(anio,mes,15)};
+  }
+}
+function quincenaActual(){
+  const q=getQuincenaActual();
+  document.getElementById('fecha-desde').value=toInputDate(q.desde);
+  document.getElementById('fecha-hasta').value=toInputDate(q.hasta);
+  renderAll();
+  if(document.getElementById('panel-cumplimiento').classList.contains('active')) renderCumplimiento();
+}
+function quincenaAnterior(){
+  const q=getQuincenaAnterior();
+  document.getElementById('fecha-desde').value=toInputDate(q.desde);
+  document.getElementById('fecha-hasta').value=toInputDate(q.hasta);
+  renderAll();
+  if(document.getElementById('panel-cumplimiento').classList.contains('active')) renderCumplimiento();
+}
+
 function todoPeriodo(){
   document.getElementById('fecha-desde').value='';
   document.getElementById('fecha-hasta').value='';
@@ -1453,17 +1490,16 @@ function exportarPDF(){try{
     return '#e74c3c';
   }
 
-  // Recalcular stats de cumplimiento con datos del período
+  // Recalcular stats de cumplimiento con datos del período (locales asignados vs. cargados)
   const ruteoPDF={};
   RAW_RELEV_PDV.forEach(r=>{
     const relev=(r[0]||'').trim();
     const pdv  =(r[1]||'').trim();
-    const dias =parseInt((r[2]||'1').toString().trim())||1;
     if(!relev||!pdv) return;
     if(!ruteoPDF[relev]) ruteoPDF[relev]=[];
-    ruteoPDF[relev].push({pdv,dias});
+    if(!ruteoPDF[relev].includes(pdv)) ruteoPDF[relev].push(pdv);
   });
-  const visitasDiasPDF={};
+  const cargasPDF={};
   RAW_VENCER.filter(r=>r.some(c=>c&&c.trim())).forEach(r=>{
     if(!inRangoFecha(r[0])) return;
     const relev=(r[1]||'').trim().toUpperCase();
@@ -1471,16 +1507,18 @@ function exportarPDF(){try{
     const fecha=(r[0]||'').trim().split(' ')[0];
     if(!relev||!pdv||!fecha) return;
     const k=relev+'|||'+pdv;
-    if(!visitasDiasPDF[k]) visitasDiasPDF[k]=new Set();
-    visitasDiasPDF[k].add(fecha);
+    if(!cargasPDF[k]) cargasPDF[k]={veces:0, ultima:fecha};
+    cargasPDF[k].veces++;
+    cargasPDF[k].ultima=fecha;
   });
-  function getVisPDF(relev,pdv){ const s=visitasDiasPDF[relev.toUpperCase()+'|||'+pdv.toUpperCase()]; return s?s.size:0; }
+  function getCargaPDF(relev,pdv){ return cargasPDF[relev.toUpperCase()+'|||'+pdv.toUpperCase()]||null; }
 
   let cumplTotalEsp=0, cumplTotalReal=0;
   const cumplStatsPDF=Object.keys(ruteoPDF).sort().map(relev=>{
     const pdvs=ruteoPDF[relev];
-    let esp=0,real=0;
-    pdvs.forEach(({pdv,dias})=>{ const v=Math.min(getVisPDF(relev,pdv),dias); esp+=dias; real+=v; });
+    let real=0;
+    pdvs.forEach(pdv=>{ if(getCargaPDF(relev,pdv)) real++; });
+    const esp=pdvs.length;
     const pct=esp?Math.round(real/esp*100):0;
     cumplTotalEsp+=esp; cumplTotalReal+=real;
     return {relev,pdvs,esp,real,pend:esp-real,pct};
@@ -1488,11 +1526,9 @@ function exportarPDF(){try{
   const cumplPctTotal=cumplTotalEsp?Math.round(cumplTotalReal/cumplTotalEsp*100):0;
 
   function barrasCumplPDF(stats){
-    const max=stats.length?stats[0].esp:1;
     return stats.map(s=>{
       const col=colorPctPDF(s.pct);
-      const realW=Math.round(s.real/s.esp*100);
-      const espW=100;
+      const realW=s.esp?Math.round(s.real/s.esp*100):0;
       return '<div style="margin-bottom:10px;">'+
         '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;">'+
           '<span style="color:rgba(255,255,255,0.8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;">'+s.relev+'</span>'+
@@ -1533,7 +1569,7 @@ function exportarPDF(){try{
     <div class="pdf-header">
       <div class="pdf-header-top">
         <div><div class="pdf-title">Cumplimiento de Relevadores</div>
-        <div class="pdf-sub">Visitas realizadas vs. esperadas según ruteo · ${periodoStr}</div></div>
+        <div class="pdf-sub">Locales cargados vs. asignados según ruteo · ${periodoStr}</div></div>
         <div class="pdf-badge">${cumplPctTotal}% cumplimiento global</div>
       </div>
     </div>
@@ -1544,14 +1580,14 @@ function exportarPDF(){try{
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
             <div style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.3);border-radius:6px;padding:10px 12px;">
               <div style="font-size:20px;font-weight:700;color:#27ae60;font-family:monospace;">${cumplTotalEsp}</div>
-              <div style="font-size:8px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;">Visitas esperadas</div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;">Locales asignados</div>
             </div>
             <div style="background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:6px;padding:10px 12px;">
               <div style="font-size:20px;font-weight:700;color:#e74c3c;font-family:monospace;">${cumplTotalEsp-cumplTotalReal}</div>
               <div style="font-size:8px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;">Pendientes</div>
             </div>
           </div>
-          <div style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Visitas por relevador</div>
+          <div style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Locales cargados por relevador</div>
           ${barrasCumplPDF(cumplStatsPDF)}
         </div>
 
@@ -1651,17 +1687,16 @@ function exportarExcel(){try{
   wsM['!freeze']={xSplit:0,ySplit:1};
   XLSX.utils.book_append_sheet(wb, wsM, 'Merma');
 
-  /* ── HOJA 5: CUMPLIMIENTO ── */
+  /* ── HOJA 5: CUMPLIMIENTO (locales asignados vs. cargados en el período) ── */
   const ruteoPDV={};
   RAW_RELEV_PDV.forEach(r=>{
     const relev=(r[0]||'').trim();
     const pdv  =(r[1]||'').trim();
-    const dias =parseInt((r[2]||'1').toString().trim())||1;
     if(!relev||!pdv) return;
     if(!ruteoPDV[relev]) ruteoPDV[relev]=[];
-    ruteoPDV[relev].push({pdv,dias});
+    if(!ruteoPDV[relev].includes(pdv)) ruteoPDV[relev].push(pdv);
   });
-  const visitasXls={};
+  const cargasXls={};
   RAW_VENCER.filter(r=>r.some(c=>c&&c.trim())).forEach(r=>{
     if(!inRangoFecha(r[0])) return;
     const relev=(r[1]||'').trim().toUpperCase();
@@ -1669,22 +1704,21 @@ function exportarExcel(){try{
     const fecha=(r[0]||'').trim().split(' ')[0];
     if(!relev||!pdv||!fecha) return;
     const k=relev+'|||'+pdv;
-    if(!visitasXls[k]) visitasXls[k]=new Set();
-    visitasXls[k].add(fecha);
+    if(!cargasXls[k]) cargasXls[k]={veces:0, ultima:fecha};
+    cargasXls[k].veces++;
+    cargasXls[k].ultima=fecha;
   });
 
-  const datosCumpl=[['Relevador','Punto de venta','Visitas esperadas','Visitas realizadas','Pendientes','% Cumplimiento','Estado']];
+  const datosCumpl=[['Relevador','Punto de venta','Cargado en el período','Última carga','Veces cargado','Estado']];
   Object.keys(ruteoPDV).sort().forEach(relev=>{
-    ruteoPDV[relev].forEach(({pdv,dias})=>{
-      const _sx=visitasXls[relev.toUpperCase()+'|||'+pdv.toUpperCase()]; const real=Math.min(_sx?_sx.size:0, dias);
-      const pend=dias-real;
-      const pct=Math.round(real/dias*100);
-      const estado=pct===100?'✓ Completo':real>0?real+'/'+dias+' visitas':'✗ Sin visita';
-      datosCumpl.push([relev, pdv, dias, real, pend, pct+'%', estado]);
+    ruteoPDV[relev].forEach(pdv=>{
+      const c=cargasXls[relev.toUpperCase()+'|||'+pdv.toUpperCase()];
+      const cargado=!!c;
+      datosCumpl.push([relev, pdv, cargado?'SI':'NO', cargado?c.ultima:'', cargado?c.veces:0, cargado?'✓ Cargado':'✗ Pendiente']);
     });
   });
   const wsCumpl=XLSX.utils.aoa_to_sheet(datosCumpl);
-  wsCumpl['!cols']=[{wch:32},{wch:40},{wch:18},{wch:18},{wch:14},{wch:16},{wch:18}];
+  wsCumpl['!cols']=[{wch:32},{wch:40},{wch:18},{wch:16},{wch:14},{wch:16}];
   wsCumpl['!freeze']={xSplit:0,ySplit:1};
   XLSX.utils.book_append_sheet(wb, wsCumpl, 'Cumplimiento');
 
