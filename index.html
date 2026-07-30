@@ -950,6 +950,7 @@ async function loadAll(manual){
 
   renderAll();
   renderMaestros();
+  if(document.getElementById('panel-cumplimiento').classList.contains('active')) renderCumplimiento();
   setStatus(ok?'ok':'err',ok?'Conectado — datos en tiempo real':'Error de conexión — verificá permisos');
   updateTime();
   if(manual){ setTimeout(hideLoader, 800); }
